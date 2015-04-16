@@ -165,8 +165,37 @@ while (<$f_url_whois6>) {
       }
   }
 }
+close $f_url_whois6;
 
+#
+# read data from RIPE IPv4 WHOIS 
+#
 
+# example snippet:
+#
+# inetnum:        80.16.151.184 - 80.16.151.191
+# netname:        NETECONOMY-MG41731
+# descr:          TELECOM ITALIA LAB SPA
+# country:        IT
+#
+
+$last_inetnum = undef;
+while (<$f_url_whois4>) {
+  if (m{^inetnum:\h*(.+)\h*$}i) {	# inetnum / inet6num
+      $last_inetnum = $1;
+      die "invalid inetnum: $last_inetnum" if $last_inetnum !~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\h*-\h*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+  } elsif (m{^\h*$}) {				# empty line indicates new record
+      $last_inetnum = undef;
+  } elsif (m{^country:\h*(.+)\h*$}i) {		# country
+      my $country = $1;
+      die "country $country for undefined inetnum??" if !defined $last_inetnum;
+      if ($country =~ m{\b$OUR_COUNTRY\b}i) {	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
+        #print "$country $last_inetnum\n";
+        $CIDR4->add_range($last_inetnum);
+      }
+  }
+}
+close $f_url_whois4;
 
 #
 # All data processed. Print all existing ranges to file.
