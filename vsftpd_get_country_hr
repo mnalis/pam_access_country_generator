@@ -10,7 +10,7 @@ use strict;
 
 use POSIX qw(strftime);
 use IO::Handle;
-use Net::CIDR qw(cidrvalidate cidradd);
+use Net::CIDR::Lite;
 
 local $ENV{'PATH'} = '/bin:/usr/bin';
 
@@ -82,7 +82,7 @@ while (<$f_orig>) {
 }
 print $f_tmp "$DYNAMIC_START\n" or die "can't write to $VSFTPD_FILE_TMP: $!";
 
-my @CIDRs = ();	# start with empty list of IPv4/IPv6 ranges
+my $CIDRs = Net::CIDR::Lite->new;;	# start with empty list of IPv4/IPv6 ranges
 
 # print one line
 my $char_count = 0;
@@ -130,8 +130,7 @@ while (my $line = <$f_urldb>) {
 		}
 	}
 	my $range = "$l_ip/$cidr";
-	die "invalid range $range" if !cidrvalidate($range);
-	@CIDRs = cidradd($range, @CIDRs);
+	$CIDRs->add($range);
 }
 close $f_urldb;
 # final validity check
@@ -163,7 +162,7 @@ while (<$f_url_whois6>) {
       die "country $country for undefined inet6num??" if !defined $last_inetnum;
       if ($country =~ m{\b$OUR_COUNTRY\b}i) {	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
         #print "$country $last_inetnum\n";
-        @CIDRs = cidradd($last_inetnum, @CIDRs);
+        $CIDRs->add($last_inetnum);
       }
   }
 }
@@ -173,7 +172,7 @@ while (<$f_url_whois6>) {
 #
 # All data processed. Print all existing ranges to file.
 #
-foreach my $range (@CIDRs) {
+foreach my $range ($CIDRs->list) {
 	oneline ($range);
 }
 
