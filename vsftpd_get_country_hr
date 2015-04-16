@@ -10,6 +10,7 @@ use strict;
 
 use POSIX qw(strftime);
 use IO::Handle;
+use Net::CIDR qw(cidrvalidate cidradd);
 
 local $ENV{'PATH'} = '/bin:/usr/bin';
 
@@ -69,6 +70,7 @@ while (<$f_orig>) {
 }
 print $f_tmp "$DYNAMIC_START\n" or die "can't write to $VSFTPD_FILE_TMP: $!";
 
+my @CIDRs = ();	# start with empty list of IPv4/IPv6 ranges
 
 # print one line
 my $char_count = 0;
@@ -112,7 +114,13 @@ while (my $line = <$f_urldb>) {
 			$cidr = 32-log2($l_size);
 		}
 	}
-	oneline ("$l_ip/$cidr");
+	my $range = "$l_ip/$cidr";
+	die "invalid range $range" if !cidrvalidate($range);
+	@CIDRs=Net::CIDR::cidradd($range, @CIDRs);
+}
+
+foreach my $range (@CIDRs) {
+	oneline ($range);
 }
 
 # final validity check
