@@ -1,8 +1,8 @@
 # pam_access_country_generator
 Generates pam_access(8) config file allowing only specific country from RIPE database
 
-Intended usage is allow only FTP access from home country for most users, to mitigate 
-trojan horses which steal passwords. Only work well for small countries like 'HR'
+Intended usage is to allow FTP access only from home country for most users, to mitigate 
+trojan horses which steal passwords. Probably only works well for small countries like 'HR'
 
 Usage:
 - install vsftpd (for example)
