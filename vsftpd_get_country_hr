@@ -2,6 +2,7 @@
 # Matija Nalis <mnalis-perl@axe.tomsoft.hr> GPLv3+  started 20140405
 #
 # gets list of RIPE IP adressess and creates ranges for vsftp pam_access limiting
+# upstream: https://github.com/mnalis/pam_access_country_generator
 #
 
 use warnings;
@@ -23,7 +24,7 @@ my $BUF_SIZE = 300 - length($LINE_PREFIX);	# 8192 - 100 - length($LINE_PREFIX);	
 my $URL='ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest';
 my $URL_CMD = "wget -q -O- $URL";
 #$URL_CMD = "cat delegated-ripencc-latest";	# DEBUG FIXME DELME
-my $VSFTPD_FILE_FINAL = '/etc/vsftpd_pam_access.conf';
+my $VSFTPD_FILE_FINAL = 'examples/vsftpd_pam_access.conf';
 my $VSFTPD_FILE_TMP = $VSFTPD_FILE_FINAL . '.tmp';
 
 
