@@ -5,6 +5,8 @@ Intended usage is to allow FTP access only from home country for most users, to 
 trojan horses which steal passwords. Probably only works well for small countries like 'HR'.
 ipset(8) should be generic firewall working for big countries too.
 
+Requires perl modules Net::CIDR::Lite (apt-get install libnet-cidr-lite-perl)
+
 Usage (ipset):
 - edit vsftpd_get_country_hr to suit your country and your config file location
 - run vsftpd_get_country_hr and put it in /etc/cron.monthly (so it updates)
