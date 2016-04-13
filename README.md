@@ -1,9 +1,12 @@
-# pam_access_country_generator
+# pam_access_country_generator - original name is misnomer, it is no longer for vsftpd or even for PAM only, but also supports iptables/ipset firewall rules
+
 Generates ipset(8) ruleset and pam_access(8) config file allowing only specific country from RIPE database
 
-Intended usage is to allow FTP access only from home country for most users, to mitigate 
-trojan horses which steal passwords. Probably only works well for small countries like 'HR'.
-ipset(8) should be generic firewall working for big countries too.
+Original intended usage is to allow FTP access only from home country for
+most users, to mitigate trojan horses which steal passwords, but is now used
+to do blocking at PAM level for any service (probably only works well for
+small countries like 'HR') or generic linux iptables/ipset(8) firewall
+(should work fine for big countries too).
 
 Requires perl modules Net::CIDR::Lite (apt-get install libnet-cidr-lite-perl)
 
