@@ -107,13 +107,17 @@ sub oneline($) {
 	my $l = shift;
 	
 	if (defined $IPSET_PATH) {
-	        my $l2 = $l;
-	        $l2 =~ s{^::ffff:}{};
-	        my $set = $OUR_COUNTRY . (($l2 =~ /:/) ? '6' : '4');
-	        print $ipset_tmp "add $set $l2\n"  or die "can't write to $IPSET_FILE_TMP: $!";
+	        my $set = $OUR_COUNTRY . (($l =~ /:/) ? '6' : '4');
+	        print $ipset_tmp "add $set $l\n"  or die "can't write to $IPSET_FILE_TMP: $!";
 	}
 	
 	if (defined $VSFTPD_FILE_FINAL) {
+          if ($IPV4_AS_FFFF) {
+              die "invalid IPv4 range $l" if $l !~ m{([\d\.]+)/(\d+)};
+              my $network = $1; my $cidr = $2;
+              $cidr += 128-32;
+              $l = "::ffff:$network/$cidr";
+          }
           if ($char_count == 0) {
                   print $pam_tmp "$LINE_PREFIX " or die "can't write to $VSFTPD_FILE_TMP: $!";
           }
@@ -226,12 +230,6 @@ close $f_url_whois4;
 # All data processed. Print all existing ranges to file.
 #
 foreach my $range ($CIDR4->list) {
-        if ($IPV4_AS_FFFF) {
-            die "invalid IPv4 range $range" if $range !~ m{([\d\.]+)/(\d+)};
-            my $network = $1; my $cidr = $2;
-            $cidr += 128-32;
-            $range = "::ffff:$network/$cidr";
-        }
 	oneline ($range);
 }
 foreach my $range ($CIDR6->list) {
