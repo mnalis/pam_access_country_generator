@@ -107,8 +107,10 @@ sub oneline($) {
 	my $l = shift;
 	
 	if (defined $IPSET_PATH) {
-	        my $set = $OUR_COUNTRY . (($l =~ /:/) ? 6 : 4);
-	        print $ipset_tmp "add $set $l\n"  or die "can't write to $IPSET_FILE_TMP: $!";
+	        my $l2 = $l;
+	        $l2 =~ s{^::ffff:}{};
+	        my $set = $OUR_COUNTRY . (($l2 =~ /:/) ? '6' : '4');
+	        print $ipset_tmp "add $set $l2\n"  or die "can't write to $IPSET_FILE_TMP: $!";
 	}
 	
 	if (defined $VSFTPD_FILE_FINAL) {
