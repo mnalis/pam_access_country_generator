@@ -112,8 +112,7 @@ sub oneline($) {
 	}
 	
 	if (defined $VSFTPD_FILE_FINAL) {
-          if ($IPV4_AS_FFFF) {
-              die "invalid IPv4 range $l" if $l !~ m{([\d\.]+)/(\d+)};
+          if ($IPV4_AS_FFFF and $l =~ m{([\d\.]+)/(\d+)}) {
               my $network = $1; my $cidr = $2;
               $cidr += 128-32;
               $l = "::ffff:$network/$cidr";
