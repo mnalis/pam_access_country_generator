@@ -1,3 +1,6 @@
 *~
 delegated-ripencc-latest
 ripe.db.inet*
+*.tmp
+vsftpd_pam_access.conf
+ipset.*.save
