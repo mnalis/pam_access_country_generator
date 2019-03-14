@@ -8,13 +8,15 @@
 use warnings;
 use strict;
 
+use Getopt::Long;
+use Pod::Usage;
 use POSIX qw(strftime);
 use IO::Handle;
 use Net::CIDR::Lite;
 
 my $OUR_COUNTRY='HR';	# generate accept list for this country code
-my $IPSET_PATH = '/etc';	# where to create ipset.$OUR_COUNTRY.save files (do not save if undef)
-my $VSFTPD_FILE_FINAL = '/etc/vsftpd_pam_access.conf';	# (do not save if undef)
+my $VSFTPD_FILE_FINAL = '/etc/vsftpd_pam_access.conf';		# (do not save if undef)
+my $IPSET_FILE_FINAL =  '/etc/ipset.' . $OUR_COUNTRY . '.save';	# (do not save if undef)
 my $DEBUG = 0;		# Important! set to 0 for production! 1 for some debug, 9 for using cached files and "." instead of "/etc"
 my $IPV4_AS_FFFF=1;	# 0=use "127.0.0.1/32" format for IPv4, 1=use "::ffff:127.0.0.1/128" format for IPv4
 my $LINE_PREFIX = '+ : ALL :';	# prepend at the beggining of the line
@@ -35,7 +37,7 @@ my $URLWHOIS4='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz';
 my $URLWHOIS4_CMD = "wget -q -O- $URLWHOIS4 | gzip -dc";
 
 if ($DEBUG > 8) {
-        $IPSET_PATH='.';
+        $IPSET_FILE_FINAL='./ipset.' . $OUR_COUNTRY . '.save';
         $VSFTPD_FILE_FINAL = './vsftpd_pam_access.conf';
 	if (-f 'delegated-ripencc-latest') {
 		$URLDB_CMD = "cat delegated-ripencc-latest";
@@ -51,9 +53,24 @@ if ($DEBUG > 8) {
 	}
 }
 
+my $opt_help = 0;
+my $opt_man = 0;
+GetOptions (	'debug|d=i'  => \$DEBUG,
+                'country|c=s' => \$OUR_COUNTRY,
+                'output-ipset-file=s' => \$IPSET_FILE_FINAL,
+                'output-pam-file=s' => \$VSFTPD_FILE_FINAL,
+                'ipv4-as-ffff!' => \$IPV4_AS_FFFF,
+                'buf-size=i' => \$BUF_SIZE,
+                'help|h|?' => \$opt_help,
+                'man' => \$opt_man
+) or die("Error in command line arguments\n");
+
+pod2usage(1) if $opt_help;
+pod2usage(-exitval => 0, -verbose => 2) if $opt_man;
+
 my $VSFTPD_FILE_TMP = $VSFTPD_FILE_FINAL . '.tmp' if defined $VSFTPD_FILE_FINAL;
-my $IPSET_FILE_FINAL = $IPSET_PATH . '/ipset.' . $OUR_COUNTRY . '.save' if defined $IPSET_PATH;
-my $IPSET_FILE_TMP = $IPSET_FILE_FINAL . '.tmp' if defined $IPSET_PATH;
+my $IPSET_FILE_TMP = $IPSET_FILE_FINAL . '.tmp' if defined $IPSET_FILE_FINAL;
+
 
 open (my $f_urldb, '-|', $URLDB_CMD) or die "can't get data from $URLDB_CMD: $!";
 open (my $f_url_whois6, '-|', $URLWHOIS6_CMD) or die "can't get data from $URLWHOIS6_CMD: $!";
@@ -103,7 +120,7 @@ if (defined $VSFTPD_FILE_FINAL) {
 }
 
 my $ipset_tmp;
-if (defined $IPSET_PATH) {
+if (defined $IPSET_FILE_FINAL) {
   open ($ipset_tmp, '>', $IPSET_FILE_TMP) or die "can't write to: $IPSET_FILE_TMP: $!";
   print $ipset_tmp "create ${OUR_COUNTRY}4 hash:net family inet hashsize 4096 maxelem 65536\n" or die "can't write to $IPSET_FILE_TMP: $!";
   print $ipset_tmp "create ${OUR_COUNTRY}6 hash:net family inet6 hashsize 4096 maxelem 65536\n" or die "can't write to $IPSET_FILE_TMP: $!";
@@ -118,7 +135,7 @@ my $char_count = 0;
 sub oneline($) {
 	my $l = shift;
 	
-	if (defined $IPSET_PATH) {
+	if (defined $IPSET_FILE_FINAL) {
 	        my $set = $OUR_COUNTRY . (($l =~ /:/) ? '6' : '4');
 	        print $ipset_tmp "add $set $l\n"  or die "can't write to $IPSET_FILE_TMP: $!";
 	}
@@ -132,7 +149,6 @@ sub oneline($) {
           if ($char_count == 0) {
                   print $pam_tmp "$LINE_PREFIX " or die "can't write to $VSFTPD_FILE_TMP: $!";
           }
-  #	print $pam_tmp "$l\n" or die "can't write to $VSFTPD_FILE_TMP: $!"; return;	# each IP one line
 
           my $chars = length($l)+1;
           print $pam_tmp "$l " or die "can't write to $VSFTPD_FILE_TMP: $!";
@@ -265,10 +281,71 @@ if (defined $VSFTPD_FILE_FINAL) {
   rename $VSFTPD_FILE_TMP, $VSFTPD_FILE_FINAL or die "can't rename $VSFTPD_FILE_TMP to $VSFTPD_FILE_FINAL: $!";
 }
 
-if (defined $IPSET_PATH) {
+if (defined $IPSET_FILE_FINAL) {
   fsync($ipset_tmp);	# make sure it's safely on disk
   close $ipset_tmp or die "can't finish writing to $IPSET_FILE_TMP: $!";
   rename $IPSET_FILE_TMP, $IPSET_FILE_FINAL or die "can't rename $IPSET_FILE_TMP to $IPSET_FILE_FINAL: $!";
 }
 
 $DEBUG and print STDERR "All checks OK\n";
+
+__END__
+
+=head1 NAME
+
+vsftpd_get_country - Generating pam(5) or ipset(8) rulesets for chosen country IPs in RIPE
+
+=head1 SYNOPSIS
+
+vsftpd_get_country [OPTION]...
+
+ Options:
+
+   -c, --country=HR		required, country to generate files for
+   --output-ipset-file=s	if specified, output IPSET ruleset to named file. One or more of the output options is required.
+   --output-pam-file=s		if specified, output PAM ruleset to named file. One or more of the output options is required.
+
+   -h, --help			brief help message
+   --man			full documentation
+
+ Advanced options:
+
+   -d, --debug=0-9		set debug level
+   --ipv4-as-ffff		how to specify PAM IPv4 values
+   --buf-size=1			set to 1 to not group IPs for PAM
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<--help>
+
+Print a brief help message and exits.
+
+=item B<--man>
+
+Prints the manual page and exits.
+
+=back
+
+=head1 DESCRIPTION
+
+B<vsftpd_get_country> will fetch list of all IPv4 and IPv6 addresses in RIPE
+region, and generate ipset(8) and/or pam(5) access list, which you can use
+to limit access or usage rights according to originating source IP address.
+
+=head1 COPYRIGHT
+
+Copyright 2014-2019 Matija Nalis.  License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+
+This is free software: you are free to change and redistribute it.  There is NO WARRANTY, to the extent permitted by law.
+
+=head1 BUGS
+
+The name B<vsftpd_get_country> is historical misnomer, list of capabilities has improved since its inception.
+
+=head1 SEE ALSO
+
+pam(5), ipset(8)
+
+=cut
