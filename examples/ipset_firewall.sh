@@ -4,11 +4,11 @@
 ipset restore < /etc/ipset.HR.save;
                 
 iptables -N HROnly
-iptables -A HROnly -m set --match-set hrvatska4 src -j ACCEPT
+iptables -A HROnly -m set --match-set HR4 src -j ACCEPT
 iptables -A HROnly -j DROP
 
 ip6tables -N HROnly
-ip6tables -A HROnly -m set --match-set hrvatska6 src -j ACCEPT
+ip6tables -A HROnly -m set --match-set HR6 src -j ACCEPT
 ip6tables -A HROnly -j DROP
 
 # helper function

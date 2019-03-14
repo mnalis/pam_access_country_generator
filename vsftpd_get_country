@@ -73,7 +73,7 @@ if (defined $IPSET_FILE_FINAL) {
 	if ($IPSET_FILE_FINAL =~ m{^([a-z/_.-]+)$}i) { $IPSET_FILE_FINAL = $1 } else { die "invalid IPSET file specified" }	# untaint
 }
 if (defined $PAM_FILE_FINAL) {
-	if ($PAM_FILE_FINAL =~ m{^([a-z/_.-]+)$}i) { $PAM_FILE_FINAL = $1 } else { die "invalid PAM file specified" }	# untaint
+	if ($PAM_FILE_FINAL =~ m{^([a-z/_.-]+)$}i) { $PAM_FILE_FINAL = $1 } else { die "invalid PAM file specified" }		# untaint
 }
 
 if (defined $OUR_COUNTRY) {
