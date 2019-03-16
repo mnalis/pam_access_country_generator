@@ -34,6 +34,19 @@ my $URLWHOIS6_CMD = "wget -q -O- $URLWHOIS6 | gzip -dc";
 my $URLWHOIS4='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz';
 my $URLWHOIS4_CMD = "wget -q -O- $URLWHOIS4 | gzip -dc";
 
+
+my $opt_help = 0;
+my $opt_man = 0;
+GetOptions (	'debug|d=i'  => \$DEBUG,
+                'country|c=s' => \$OUR_COUNTRY,
+                'output-ipset-file=s' => \$IPSET_FILE_FINAL,
+                'output-pam-file=s' => \$PAM_FILE_FINAL,
+                'ipv4-as-ffff!' => \$IPV4_AS_FFFF,
+                'buf-size=i' => \$BUF_SIZE,
+                'help|h|?' => \$opt_help,
+                'man' => \$opt_man
+) or die("Error in command line arguments\n");
+
 if ($DEBUG > 8) {
 	if (-f 'delegated-ripencc-latest') {
 		$URLDB_CMD = "cat delegated-ripencc-latest";
@@ -48,18 +61,6 @@ if ($DEBUG > 8) {
 	        print STDERR "In DEBUG>=9; Using existing cached URLWHOIS4_CMD=$URLWHOIS4_CMD\n";
 	}
 }
-
-my $opt_help = 0;
-my $opt_man = 0;
-GetOptions (	'debug|d=i'  => \$DEBUG,
-                'country|c=s' => \$OUR_COUNTRY,
-                'output-ipset-file=s' => \$IPSET_FILE_FINAL,
-                'output-pam-file=s' => \$PAM_FILE_FINAL,
-                'ipv4-as-ffff!' => \$IPV4_AS_FFFF,
-                'buf-size=i' => \$BUF_SIZE,
-                'help|h|?' => \$opt_help,
-                'man' => \$opt_man
-) or die("Error in command line arguments\n");
 
 pod2usage(1) if $opt_help;
 pod2usage(-exitval => 0, -verbose => 2) if $opt_man;
@@ -186,6 +187,8 @@ sub oneline($) {
 
 # lines look like: "ripencc|FR|ipv4|2.0.0.0|1048576|20100712|allocated"
 my $count = 0;
+my $count_db4 = 0;
+my $count_db6 = 0;
 while (my $line = <$f_urldb>) {
 	my ($l_sig, $l_country, $l_type, $l_ip, $l_size, $l_rest) = split /\|/, $line, 6;
 	if ($l_sig ne 'ripencc') { die "invalid signature in line $line" }
@@ -199,15 +202,18 @@ while (my $line = <$f_urldb>) {
 		$cidr = $l_size;
 		my $range = "$l_ip/$cidr";
                 $CIDR6->add($range);
+		$count_db6++;
 	} else {			# IPv4
 		$cidr = 32-log2($l_size);
 		my $range = "$l_ip/$cidr";
                 $CIDR4->add($range);
+		$count_db4++;
 	}
 }
 close $f_urldb;
 # final validity check
 if ($count ne $db_count) { die "RIPEDB at $URLDB count mismatch $count != $db_count" }
+$DEBUG and print STDERR "RIPE DB finished processing $db_count (added $count_db4 IPv4 and $count_db6 IPv6)\n";
 
 
 
@@ -223,7 +229,9 @@ if ($count ne $db_count) { die "RIPEDB at $URLDB count mismatch $count != $db_co
 # country:        GB
 # 
 
+$DEBUG and print STDERR "Processing WHOIS6\n";
 my $last_inetnum = undef;
+my $count_whois6 = 0;
 while (<$f_url_whois6>) {
   if (m{^inet6num:\h*(.+)\h*$}i) {	# inetnum / inet6num
       $last_inetnum = $1;
@@ -236,10 +244,13 @@ while (<$f_url_whois6>) {
       if ($country =~ m{\b$OUR_COUNTRY\b}i) {	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
         #print "$country $last_inetnum\n";
         $CIDR6->add($last_inetnum);
+	$count_whois6++;
       }
   }
 }
 close $f_url_whois6;
+$DEBUG and print STDERR "WHOIS6 added $count_whois6 networks\n";
+
 
 #
 # read data from RIPE IPv4 WHOIS 
@@ -253,7 +264,9 @@ close $f_url_whois6;
 # country:        IT
 #
 
+$DEBUG and print STDERR "Processing WHOIS4\n";
 $last_inetnum = undef;
+my $count_whois4 = 0;
 while (<$f_url_whois4>) {
   if (m{^inetnum:\h*(.+)\h*$}i) {	# inetnum / inet6num
       $last_inetnum = $1;
@@ -266,10 +279,13 @@ while (<$f_url_whois4>) {
       if ($country =~ m{\b$OUR_COUNTRY\b}i) {	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
         #print "$country $last_inetnum\n";
         $CIDR4->add_range($last_inetnum);
+	$count_whois4++;
       }
   }
 }
 close $f_url_whois4;
+$DEBUG and print STDERR "WHOIS4 added $count_whois4 networks\n";
+
 
 #
 # All data processed. Print all existing ranges to file.
