@@ -1,6 +1,7 @@
-- fix (and workaround) for SI - and find and report other broken countries!
++? fix (and workaround) for SI - and find and report other broken countries!
 	00:00:01     found 193.164.137.0/21.6780719051126 (size: 1280) in country: SI
 	00:00:01 Bad mask 21.6780719051126 at /usr/share/perl5/Net/CIDR/Lite.pm line 40, <$f_urldb> line 64743.
+	00:00:01        Net::CIDR::Lite::add(Net::CIDR::Lite=HASH(0x55628af3fe58), "193.164.137.0/21.6780719051126") called at ./vsftpd_get_country line 248
 
 	provjeri ih u WHOIS4 !
 
@@ -10,6 +11,7 @@
 	ripe.db.inetnum.gz:country:        SI
 	ripe.db.inetnum.gz:org:            ORG-Dd9-RIPE
 
+	workaround added, but it might be nice to use precise values...
 
 + check summary razlika! 
 	+ summary original	RIPEDB 209/56,	WHOIS6 135,	WHOIS4 8291
@@ -27,4 +29,21 @@
 	org:            ORG-MG33-RIPE
 
   ili
+
 	inetnum:        185.13.128.0 - 185.13.131.255
+	netname:        UK-MCD-EU-20121214
+	country:        am
+	country:        hr
+	country:        cz
+	country:        dk
+	country:        FI
+	country:        GE
+	country:        DE
+	country:        GR
+	country:        GL
+	country:        IE
+	country:        IT
+	country:        JO
+	country:        NL
+	country:        PL
+

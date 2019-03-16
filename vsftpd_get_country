@@ -1,5 +1,5 @@
 #!/usr/bin/perl -T
-# Matija Nalis <mnalis-perl@axe.tomsoft.hr> GPLv3+  started 20140405
+# Matija Nalis <mnalis-perl@axe.tomsoft.hr> GPLv3+  started 20140405 - updated 20190316 
 #
 # gets list of RIPE IP adressess and creates ranges for ipset or vsftp pam_access limiting
 # upstream: https://github.com/mnalis/pam_access_country_generator
@@ -243,6 +243,11 @@ while (my $line = <$f_urldb>) {
 		$count_db6++;
 	} else {			# IPv4
 		$cidr = 32-log2($l_size);
+		if ($cidr - int($cidr)) {
+			# FIXME: alternatively, we could just skip over it, and rely on WHOIS4 to fix it. Or we could calculate an range manually and add that to be precise.
+			$DEBUG && print STDERR "WARNING: non-CIDR size $l_size for $l_ip/$cidr in country $l_country, upgrading CIDR to bigger one (better be safe than sorry)\n";
+			$cidr = int($cidr);
+		}
 		my $range = "$l_ip/$cidr";
 		$DEBUG > 10 && print STDERR "    found $l_ip/$cidr (size: $l_size) in country: $l_country\n";
                 $CCIDR4{$l_country}->add($range);
