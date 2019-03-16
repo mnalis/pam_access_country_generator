@@ -246,7 +246,7 @@ while (my $line = <$f_urldb>) {
 		if ($cidr - int($cidr)) {
 			# FIXME: alternatively, we could just skip over it, and rely on WHOIS4 to fix it. Or we could calculate an range manually and add that to be precise.
 			$DEBUG && print STDERR "WARNING: non-CIDR size $l_size for $l_ip/$cidr in country $l_country, upgrading CIDR to bigger one (better be safe than sorry)\n";
-			$cidr = int($cidr);
+			$cidr = int($cidr);	# or we could add "+1" here if we would rather just add partial network range...
 		}
 		my $range = "$l_ip/$cidr";
 		$DEBUG > 10 && print STDERR "    found $l_ip/$cidr (size: $l_size) in country: $l_country\n";

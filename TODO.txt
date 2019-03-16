@@ -19,9 +19,10 @@
 
 + check if it returns same values for HR as before
 
-- check multiple countries da li radi (i da li generira duplice?)
++ check multiple countries da li radi (i da li generira duplice?)
+  radi, i generira duplice u svakom IPSET kako treba (ali i u PAM, gdje realno mozda ne treba)
 
-- check for entries which exist have multiple countries, for example:
++ check for entries which exist have multiple countries, for example:
 	inet6num:       2001:67c:268::/48
 	netname:        AS-MIRONET-ANYCAST6
 	country:        CH
