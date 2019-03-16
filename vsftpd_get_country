@@ -219,7 +219,7 @@ while (my $line = <$f_urldb>) {
 close $f_urldb;
 # final validity check
 if ($count ne $db_count) { die "RIPEDB at $URLDB count mismatch $count != $db_count" }
-$DEBUG and print STDERR "RIPE DB finished processing $db_count (added $count_db4 IPv4 and $count_db6 IPv6)\n";
+$DEBUG and print STDERR "RIPE DB finished processing $db_count networks (added $count_db4 IPv4 and $count_db6 IPv6)\n";
 
 
 
