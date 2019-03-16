@@ -4,6 +4,13 @@
 
 	provjeri ih u WHOIS4 !
 
+	ripencc|SI|ipv4|193.164.137.0|1280|20060818|assigned
+
+	ripe.db.inetnum.gz:inetnum:        193.164.137.0 - 193.164.141.255
+	ripe.db.inetnum.gz:country:        SI
+	ripe.db.inetnum.gz:org:            ORG-Dd9-RIPE
+
+
 + check summary razlika! 
 	+ summary original	RIPEDB 209/56,	WHOIS6 135,	WHOIS4 8291
 	+ summary multi 	RIPEDB 209/56,	WHOIS6 135,	WHOIS4 8291 (nakon  vracanja /i)
