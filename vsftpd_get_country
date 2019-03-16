@@ -86,7 +86,7 @@ if (defined $PAM_FILE_FINAL) {
 
 if (@COUNTRIES) {
 	foreach my $country (@COUNTRIES) {
-		if ($country =~ /^([A-Z]{2})$/) { $country=$1 } else { die "invalid 2-letter uppercase country $country specified" } 	# untaint
+		if ($country =~ /^([A-Z]{2})$/) { $country=uc($1) } else { die "invalid 2-letter uppercase country $country specified" } 	# untaint
 	}
 } else {
 	print STDERR "ERROR: --country option is mandatory!\n";
@@ -136,6 +136,24 @@ sub fsync($) {
 	$file->sync or die 'fsync cannot fsync';
 }
 
+# returns country found if matched as exact string in our list of countries, eg. 'HR', undef otherwise
+sub match_country_exact($) {
+	my ($needle_country) = @_;
+	foreach my $cur_country (@COUNTRIES) {
+		return $cur_country if $needle_country eq $cur_country;
+	}
+	return undef;
+}
+
+# returns country found if matched somewhere in a line, undef otherwise
+sub match_country_fuzzy($) {
+	my ($haystack_line) = @_;
+	foreach my $cur_country (@COUNTRIES) {
+	      return $cur_country if ($haystack_line =~ m{\b$cur_country\b}) {	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
+	}
+	return undef;
+}
+
 my $f_orig;
 my $pam_tmp;
 if (defined $PAM_FILE_FINAL) {
@@ -160,16 +178,20 @@ if (defined $IPSET_FILE_FINAL) {
 }
 
 
-my $CIDR4 = Net::CIDR::Lite->new;	# start with empty list of IPv4 ranges
-my $CIDR6 = Net::CIDR::Lite->new;	# start with empty list of IPv6 ranges
+my %CCIDR4 = ();	# per-country CIDR IPv4 ranges
+my %CCIDR6 = ();	# per-country CIDR IPv6 ranges
+foreach my $country (@COUNTRIES) {
+	my $CCIDR4{$country} = Net::CIDR::Lite->new;	# start with empty list of IPv4 ranges
+	my $CCIDR6{$country} = Net::CIDR::Lite->new;	# start with empty list of IPv6 ranges
+}
 
 # print one line
 my $char_count = 0;
-sub oneline($) {
-	my $l = shift;
+sub oneline($$) {
+	my ($country, $l) = @_;
 	
 	if (defined $IPSET_FILE_FINAL) {
-	        my $set = $OUR_COUNTRY . (($l =~ /:/) ? '6' : '4');
+	        my $set = $country . (($l =~ /:/) ? '6' : '4');
 	        print $ipset_tmp "add $set $l\n"  or die "can't write to $IPSET_FILE_TMP: $!";
 	}
 	
@@ -209,18 +231,18 @@ while (my $line = <$f_urldb>) {
 	next if $l_country eq '*';	# skip summary lines
 	$count++;
 	next if $l_type !~ /^ipv[46]$/;	# only interested in IPv4/IPv6
-	next if $l_country ne $OUR_COUNTRY;	# not interested in other countries
+	next if !match_country_exact ($l_country);	# not interested in other countries
 
 	my $cidr;
 	if ($l_type eq 'ipv6') {	# IPv6
 		$cidr = $l_size;
 		my $range = "$l_ip/$cidr";
-                $CIDR6->add($range);
+                $CCIDR6{$l_country}->add($range);
 		$count_db6++;
 	} else {			# IPv4
 		$cidr = 32-log2($l_size);
 		my $range = "$l_ip/$cidr";
-                $CIDR4->add($range);
+                $CCIDR4{$l_country}->add($range);
 		$count_db4++;
 	}
 }
@@ -255,9 +277,10 @@ while (<$f_url_whois6>) {
   } elsif (m{^country:\h*(.+)\h*$}) {		# country
       my $country = $1;
       die "country $country for undefined inet6num??" if !defined $last_inetnum;
-      if ($country =~ m{\b$OUR_COUNTRY\b}i) {	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
-        #print "$country $last_inetnum\n";
-        $CIDR6->add($last_inetnum);
+      my $found_country = match_country_fuzzy ($country);	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
+      if ($found_country) {
+        $DEBUG > 10 && print STDERR "    $found_country ($country) $last_inetnum\n";
+        $CCIDR6{$found_country}->add($last_inetnum);
 	$count_whois6++;
       }
   }
@@ -292,9 +315,10 @@ while (<$f_url_whois4>) {
       my $country = $1;
       $DEBUG > 9 && print STDERR "    country: $country\n";
       die "country $country for undefined inetnum??" if !defined $last_inetnum;
-      if ($country =~ m{\b$OUR_COUNTRY\b}i) {	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
-        #print "$country $last_inetnum\n";
-        $CIDR4->add_range($last_inetnum);
+      my $found_country = match_country_fuzzy ($country);	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
+      if ($found_country) {
+        $DEBUG > 10 && print STDERR "    $found_country ($country) $last_inetnum\n";
+        $CCIDR4{$found_country}->add_range($last_inetnum);
 	$count_whois4++;
       }
   }
@@ -306,11 +330,13 @@ $DEBUG and print STDERR "WHOIS4 added $count_whois4 networks\n";
 #
 # All data processed. Print all existing ranges to file.
 #
-foreach my $range ($CIDR4->list) {
-	oneline ($range);
-}
-foreach my $range ($CIDR6->list) {
-	oneline ($range);
+foureach my $country (@COUNTRIES) {
+	foreach my $range ($CCIDR4{$country}->list) {
+		oneline ($country, $range);
+	}
+	foreach my $range ($CCIDR6{$country}->list) {
+		oneline ($country, $range);
+	}
 }
 
 
