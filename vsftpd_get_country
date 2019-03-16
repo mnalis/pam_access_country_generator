@@ -86,7 +86,7 @@ if (defined $PAM_FILE_FINAL) {
 
 if (@COUNTRIES) {
 	foreach my $country (@COUNTRIES) {
-		if ($country =~ /^([A-Z]{2})$/) { $country=uc($1) } else { die "invalid 2-letter uppercase country $country specified" } 	# untaint
+		if ($country =~ /^([A-Z]{2})$/i) { $country=uc($1) } else { die "invalid 2-letter country code $country specified" } 	# untaint
 	}
 } else {
 	print STDERR "ERROR: --country option is mandatory!\n";
@@ -149,7 +149,7 @@ sub match_country_exact($) {
 sub match_country_fuzzy($) {
 	my ($haystack_line) = @_;
 	foreach my $cur_country (@COUNTRIES) {
-	      return $cur_country if ($haystack_line =~ m{\b$cur_country\b});	# usually $haystack_line is just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
+	      return $cur_country if ($haystack_line =~ m{\b$cur_country\b}i);	# usually $haystack_line is just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
 	}
 	return undef;
 }
