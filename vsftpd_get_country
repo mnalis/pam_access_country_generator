@@ -30,8 +30,8 @@ my $BUF_SIZE = 300 - length($LINE_PREFIX);	# 8192 - 100 - length($LINE_PREFIX);	
 my $DECOMPRESS="gzip -dc";
 if ( -x '/usr/bin/pigz') { $DECOMPRESS="pigz -dc" }	# use faster decompressor if available
 
-my $FILTER4 = '| grep -F -e inetnum: -e country:';	# grep -F parses WHOIS6 in FIXME stats
-my $FILTER6 = '| grep -F -e inet6num: -e country:';	# grep -F parses WHOIS6 in 2.5 seconds, while our perl needs 22. FIXME stats
+my $FILTER4 = '| grep -F -e inetnum: -e country:';	# without filter, perl takes 74 seconds for WHOIS4, with "grep -F" filter only 20 seconds
+my $FILTER6 = '| grep -F -e inet6num: -e country:';	# without filter, perl takes 16 seconds for WHOIS6, with "grep -F" filter only  4 seconds
 
 my $URLDB='ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest';
 my $URLDB_CMD = "wget -q -O- $URLDB";
