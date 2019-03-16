@@ -30,12 +30,15 @@ my $BUF_SIZE = 300 - length($LINE_PREFIX);	# 8192 - 100 - length($LINE_PREFIX);	
 my $DECOMPRESS="gzip -dc";
 if ( -x '/usr/bin/pigz') { $DECOMPRESS="pigz -dc" }	# use faster decompressor if available
 
+my $FILTER4 = '| grep -F -e inetnum: -e country:';	# grep -F parses WHOIS6 in FIXME stats
+my $FILTER6 = '| grep -F -e inet6num: -e country:';	# grep -F parses WHOIS6 in 2.5 seconds, while our perl needs 22. FIXME stats
+
 my $URLDB='ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest';
 my $URLDB_CMD = "wget -q -O- $URLDB";
 my $URLWHOIS6='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz';
-my $URLWHOIS6_CMD = "wget -q -O- $URLWHOIS6 | $DECOMPRESS";
+my $URLWHOIS6_CMD = "wget -q -O- $URLWHOIS6 | $DECOMPRESS $FILTER6";
 my $URLWHOIS4='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz';
-my $URLWHOIS4_CMD = "wget -q -O- $URLWHOIS4 | $DECOMPRESS";
+my $URLWHOIS4_CMD = "wget -q -O- $URLWHOIS4 | $DECOMPRESS $FILTER4";
 
 
 my $opt_help = 0;
@@ -56,11 +59,11 @@ if ($DEBUG > 8) {
 	        print STDERR "In DEBUG>=9; Using existing cached URLDB_CMD=$URLDB_CMD\n";
 	}
 	if (-f 'ripe.db.inet6num.gz') {
-	        $URLWHOIS6_CMD = "$DECOMPRESS ripe.db.inet6num.gz";
+	        $URLWHOIS6_CMD = "$DECOMPRESS ripe.db.inet6num.gz $FILTER6";
 	        print STDERR "In DEBUG>=9; Using existing cached URLWHOIS6_CMD=$URLWHOIS6_CMD\n";
         }
 	if (-f 'ripe.db.inetnum.gz') {
-	        $URLWHOIS4_CMD = "$DECOMPRESS ripe.db.inetnum.gz";
+	        $URLWHOIS4_CMD = "$DECOMPRESS ripe.db.inetnum.gz $FILTER4";
 	        print STDERR "In DEBUG>=9; Using existing cached URLWHOIS4_CMD=$URLWHOIS4_CMD\n";
 	}
 }
@@ -273,11 +276,13 @@ my $count_whois4 = 0;
 while (<$f_url_whois4>) {
   if (m{^inetnum:\h*(.+)\h*$}) {	# inetnum / inet6num
       $last_inetnum = $1;
+      $DEBUG > 9 && print STDERR "  new inetnum: $last_inetnum\n";
       die "invalid inetnum: $last_inetnum" if $last_inetnum !~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\h*-\h*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
   } elsif (m{^\h*$}) {				# empty line indicates new record
       $last_inetnum = undef;
   } elsif (m{^country:\h*(.+)\h*$}) {		# country
       my $country = $1;
+      $DEBUG > 9 && print STDERR "    country: $country\n";
       die "country $country for undefined inetnum??" if !defined $last_inetnum;
       if ($country =~ m{\b$OUR_COUNTRY\b}i) {	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
         #print "$country $last_inetnum\n";
