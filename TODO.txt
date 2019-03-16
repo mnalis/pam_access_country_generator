@@ -2,6 +2,9 @@
 	00:00:01     found 193.164.137.0/21.6780719051126 (size: 1280) in country: SI
 	00:00:01 Bad mask 21.6780719051126 at /usr/share/perl5/Net/CIDR/Lite.pm line 40, <$f_urldb> line 64743.
 
+- check: 
+	- summary original	RIPEDB FIXME,	WHOIS4 135,	WHOIS6 8291
+	- summary multi 	RIPEDB 209/56,	WHOIS4 135,	WHOIS6 8272
 
 - check if it returns same values for HR as before
 
