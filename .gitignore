@@ -1,6 +1,7 @@
 *~
-delegated-ripencc-latest
+delegated-*-latest
 ripe.db.inet*
+arin.db
 *.tmp
 vsftpd_pam_access.conf
 ipset.*.save
