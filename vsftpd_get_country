@@ -70,9 +70,6 @@ sub maybe_try_cached($) {
 	return $cmd;
 }
 
-my $URLDB_CMD = maybe_try_cached($URLDB);
-my $URLWHOIS6_CMD = maybe_try_cached($URLWHOIS6);
-my $URLWHOIS4_CMD = maybe_try_cached($URLWHOIS4);
 
 
 pod2usage(1) if $opt_help;
@@ -278,6 +275,8 @@ sub parse_delegated($$) {
 	if ($count ne $db_count) { die "$db_sig delegated DB at $URLDB count mismatch $count != $db_count" }
 	$DEBUG and print STDERR "$db_sig delegated DB finished processing $db_count networks (added $count_db4 IPv4 and $count_db6 IPv6)\n";
 }
+
+my $URLDB_CMD = maybe_try_cached($URLDB);
 parse_delegated($URLDB_CMD, 50000);
 
 #
@@ -293,6 +292,7 @@ parse_delegated($URLDB_CMD, 50000);
 # 
 
 $DEBUG and print STDERR "Processing WHOIS6\n";
+my $URLWHOIS6_CMD = maybe_try_cached($URLWHOIS6);
 open (my $f_url_whois6, '-|', $URLWHOIS6_CMD) or die "can't get data from $URLWHOIS6_CMD: $!";
 my $last_inetnum = undef;
 my $count_whois6 = 0;
@@ -332,6 +332,7 @@ $DEBUG and print STDERR "WHOIS6 added $count_whois6 networks\n";
 #
 
 $DEBUG and print STDERR "Processing WHOIS4\n";
+my $URLWHOIS4_CMD = maybe_try_cached($URLWHOIS4);
 open (my $f_url_whois4, '-|', $URLWHOIS4_CMD) or die "can't get data from $URLWHOIS4_CMD: $!";
 $last_inetnum = undef;
 my $count_whois4 = 0;
