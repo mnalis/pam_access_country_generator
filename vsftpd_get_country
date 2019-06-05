@@ -40,14 +40,15 @@ my %URLS_DELEGATED = (
 		'ftp://ftp.ripe.net/pub/stats/afrinic/delegated-afrinic-latest'		=> 5_000,
 		'ftp://ftp.ripe.net/pub/stats/apnic/delegated-apnic-latest' 		=> 50_000,
 		'ftp://ftp.ripe.net/pub/stats/lacnic/delegated-lacnic-extended-latest'	=> 30_000,
-		'ftp://ftp.ripe.net/pub/stats/arin/delegated-arin-extended-latest'	=> 120_000,
+		'ftp://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest'	=> 120_000,
 	);
 
 # all WHOIS DATABASES
 my @URLS_WHOIS = (
+		'ftp://ftp.arin.net/pub/rr/arin.db',
+		'http://ftp.afrinic.net/dbase/afrinic.db.gz',
 		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz',
 		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz',
-		'ftp://ftp.arin.net/pub/rr/arin.db',
 	);
 
 my $opt_help = 0;
@@ -316,9 +317,11 @@ sub parse_whois($) {
 	open (my $f_url_whois, '-|', $whois_cmd) or die "can't get data from $whois_cmd: $!";
 	my $last_inetnum = undef;
 	my $last_obj = undef;
+	my $new_block = 1;
 	my $count_whois4 = 0;
 	my $count_whois6 = 0;
 	while (<$f_url_whois>) {
+		$last_obj = $_ if $new_block;		# first line in new block (after empty line) usually indicates type of object
 		if (m{^inet6?num:\h*(.+)\h*$}) {	# inetnum / inet6num
 		    $last_inetnum = lc $1;
 		    $DEBUG > 12 && print STDERR "  try inet(6)num: $last_inetnum\n";
@@ -330,14 +333,14 @@ sub parse_whois($) {
 		} elsif (m{^$}) {				# empty line indicates new record (but line made of whitespace only might be part of descr: in ARIN DB!)
 		    $last_inetnum = undef;
 		    $last_obj = undef;
-		} elsif (m{^(route|route6|route-set|as-set|aut-num|inet-rtr|key-cert):}) {	# known objects which could have "country:" but are not interesting to us. FIXME: maybe could use route/route6?
-		    $last_obj = $1;
+		    $new_block = 1;
+		    next;
 		} elsif (m{^country:\h*(.+)\h*$}) {		# country
 		    my $country = $1;
 		    $DEBUG > 12 && print STDERR "    try country: $country\n";
 		    if (!defined $last_inetnum) {
-			    next if defined $last_obj;
-			    die "country $country for undefined inet(6)num and no last_obj??";
+			    next if defined $last_obj and $last_obj =~ m{^(route|route6|route-set|as-set|aut-num|inet-rtr|key-cert|organisation):};	# known objects which could have "country:" but are not interesting to us
+			    die "country $country for undefined inet(6)num and unknown last_obj=$last_obj??";
 		    }
 		    my $found_country = match_country_fuzzy ($country);	# usually it is just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
 		    if ($found_country) {
@@ -351,6 +354,7 @@ sub parse_whois($) {
 			}
 		    }
 		}
+		$new_block=0;
 	}
 	close $f_url_whois;
 	$DEBUG and print STDERR "WHOIS added $count_whois4 IPv4 and $count_whois6 IPv6 networks\n";
