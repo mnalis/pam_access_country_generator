@@ -46,6 +46,7 @@ my %URLS_DELEGATED = (
 # all WHOIS DATABASES
 my @URLS_WHOIS = (
 		'ftp://ftp.arin.net/pub/rr/arin.db',
+		'http://ftp.lacnic.net/lacnic/dbase/lacnic.db.gz',
 		'http://ftp.afrinic.net/dbase/afrinic.db.gz',
 		'http://ftp.apnic.net/apnic/whois/apnic.db.inet6num.gz',
 		'http://ftp.apnic.net/apnic/whois/apnic.db.inetnum.gz',

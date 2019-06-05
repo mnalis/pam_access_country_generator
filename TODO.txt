@@ -7,7 +7,11 @@
 - parse  other RIR WHOIS databases
 	- LACNIC
 	- AFRINIC
-	- APNIC
+	+ APNIC
+
+- LACNIC allows use of shorthand notation:
+	inetnum:    24.232/16
+	inetnum:    24.232.16/24
 
 - WHOIS DB parsing use route/route6 also in addition to inetnum/inet6num
 

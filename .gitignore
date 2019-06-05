@@ -2,6 +2,7 @@
 delegated-*-latest
 arin.db
 afrinic.db.gz
+lacnic.db.gz
 apnic.db.inet*.gz
 ripe.db.inet*.gz
 *.tmp
