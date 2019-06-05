@@ -281,6 +281,65 @@ sub maybe_try_cached($) {
 	return $cmd;
 }
 
+
+
+# example IPv6 snippet:
+#
+# inet6num:       2001:6f8::/39
+# netname:        EASYNET-GROUP-ALLOC
+# descr:          Easynet Group Allocation
+# country:        GB
+# 
+# example IPv4 snippet:
+#
+# inetnum:        80.16.151.184 - 80.16.151.191
+# netname:        NETECONOMY-MG41731
+# descr:          TELECOM ITALIA LAB SPA
+# country:        IT
+#
+
+#
+# parses WHOIS IPv4/IPv6 DB
+#
+sub parse_whois($) {
+	my ($whois_cmd) = @_;
+	$DEBUG and print STDERR "Processing WHOIS\n";
+	open (my $f_url_whois, '-|', $whois_cmd) or die "can't get data from $whois_cmd: $!";
+	my $last_inetnum = undef;
+	my $count_whois4 = 0;
+	my $count_whois6 = 0;
+	while (<$f_url_whois>) {
+		if (m{^inet6?num:\h*(.+)\h*$}) {	# inetnum / inet6num
+		    $last_inetnum = $1;
+		    $DEBUG > 12 && print STDERR "  try inet(6)num: $last_inetnum\n";
+		    if ($last_inetnum =~ /:/) {
+			    die "invalid inet6num: $last_inetnum" if $last_inetnum !~ m{^[a-z0-9/:]+$};
+		    } else {
+			    die "invalid inetnum: $last_inetnum"  if $last_inetnum !~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\h*-\h*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+		    }
+		} elsif (m{^\h*$}) {				# empty line indicates new record
+		    $last_inetnum = undef;
+		} elsif (m{^country:\h*(.+)\h*$}) {		# country
+		    my $country = $1;
+		    $DEBUG > 12 && print STDERR "    try country: $country\n";
+		    die "country $country for undefined inet6num??" if !defined $last_inetnum;
+		    my $found_country = match_country_fuzzy ($country);	# usually it is just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
+		    if ($found_country) {
+			$DEBUG > 10 && print STDERR "    found $found_country ($country) $last_inetnum\n";
+			if ($last_inetnum =~ /:/) {
+				$CCIDR6{$found_country}->add($last_inetnum);
+				$count_whois6++;
+			} else {
+				$CCIDR4{$found_country}->add_range($last_inetnum);
+				$count_whois4++;
+			}
+		    }
+		}
+	}
+	close $f_url_whois;
+	$DEBUG and print STDERR "WHOIS added $count_whois4 IPv4 and $count_whois6 IPv6 networks\n";
+}
+
 #
 # parse delegated RIR db for each RIR
 #
@@ -292,90 +351,14 @@ foreach my $url_db (keys %URLDBS) {
 #
 # read data from RIPE IPv6 WHOIS 
 #
-
-# example snippet:
-#
-# inet6num:       2001:6f8::/39
-# netname:        EASYNET-GROUP-ALLOC
-# descr:          Easynet Group Allocation
-# country:        GB
-# 
-
-sub parse_whois6($) {
-	my ($whois_cmd) = @_;
-	$DEBUG and print STDERR "Processing WHOIS6\n";
-	open (my $f_url_whois6, '-|', $whois_cmd) or die "can't get data from $whois_cmd: $!";
-	my $last_inetnum = undef;
-	my $count_whois6 = 0;
-	while (<$f_url_whois6>) {
-	  if (m{^inet6num:\h*(.+)\h*$}) {	# inetnum / inet6num
-	      $last_inetnum = $1;
-	      $DEBUG > 12 && print STDERR "  try6 inet6num: $last_inetnum\n";
-	      die "invalid inet6num: $last_inetnum" if $last_inetnum !~ m{^[a-z0-9/:]+$};
-	  } elsif (m{^\h*$}) {				# empty line indicates new record
-	      $last_inetnum = undef;
-	  } elsif (m{^country:\h*(.+)\h*$}) {		# country
-	      my $country = $1;
-	      $DEBUG > 12 && print STDERR "    try6 country: $country\n";
-	      die "country $country for undefined inet6num??" if !defined $last_inetnum;
-	      my $found_country = match_country_fuzzy ($country);	# usually it is just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
-	      if ($found_country) {
-		$DEBUG > 10 && print STDERR "    found6 $found_country ($country) $last_inetnum\n";
-		$CCIDR6{$found_country}->add($last_inetnum);
-		$count_whois6++;
-	      }
-	  }
-	}
-	close $f_url_whois6;
-	$DEBUG and print STDERR "WHOIS6 added $count_whois6 networks\n";
-}
-
 my $URLWHOIS6_CMD = maybe_try_cached($URLWHOIS6);
-parse_whois6($URLWHOIS6_CMD);
+parse_whois($URLWHOIS6_CMD);
 
 #
 # read data from RIPE IPv4 WHOIS 
 #
-
-# example snippet:
-#
-# inetnum:        80.16.151.184 - 80.16.151.191
-# netname:        NETECONOMY-MG41731
-# descr:          TELECOM ITALIA LAB SPA
-# country:        IT
-#
-
-sub parse_whois4($) {
-	my ($whois_cmd) = @_;
-	$DEBUG and print STDERR "Processing WHOIS4\n";
-	open (my $f_url_whois4, '-|', $whois_cmd) or die "can't get data from $whois_cmd: $!";
-	my $last_inetnum = undef;
-	my $count_whois4 = 0;
-	while (<$f_url_whois4>) {
-	  if (m{^inetnum:\h*(.+)\h*$}) {	# inetnum / inet6num
-	      $last_inetnum = $1;
-	      $DEBUG > 12 && print STDERR "  try4 inetnum: $last_inetnum\n";
-	      die "invalid inetnum: $last_inetnum" if $last_inetnum !~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\h*-\h*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
-	  } elsif (m{^\h*$}) {				# empty line indicates new record
-	      $last_inetnum = undef;
-	  } elsif (m{^country:\h*(.+)\h*$}) {		# country
-	      my $country = $1;
-	      $DEBUG > 12 && print STDERR "    try4 country: $country\n";
-	      die "country $country for undefined inetnum??" if !defined $last_inetnum;
-	      my $found_country = match_country_fuzzy ($country);	# usually it is just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
-	      if ($found_country) {
-		$DEBUG > 10 && print STDERR "    found4 $found_country ($country) $last_inetnum\n";
-		$CCIDR4{$found_country}->add_range($last_inetnum);
-		$count_whois4++;
-	      }
-	  }
-	}
-	close $f_url_whois4;
-	$DEBUG and print STDERR "WHOIS4 added $count_whois4 networks\n";
-}
-
 my $URLWHOIS4_CMD = maybe_try_cached($URLWHOIS4);
-parse_whois4($URLWHOIS4_CMD);
+parse_whois($URLWHOIS4_CMD);
 
 
 #
