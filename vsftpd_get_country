@@ -172,7 +172,7 @@ my $ipset_tmp;
 if (defined $IPSET_FILE_FINAL) {
   open ($ipset_tmp, '>', $IPSET_FILE_TMP) or die "can't write to: $IPSET_FILE_TMP: $!";
   foreach my $country (@COUNTRIES) {
-	print $ipset_tmp "create ${country}4 hash:net family inet hashsize 4096 maxelem 65536\n" or die "can't write to $IPSET_FILE_TMP: $!";
+	print $ipset_tmp "create ${country}4 hash:net family inet hashsize 4096 maxelem 65536\n"  or die "can't write to $IPSET_FILE_TMP: $!";
 	print $ipset_tmp "create ${country}6 hash:net family inet6 hashsize 4096 maxelem 65536\n" or die "can't write to $IPSET_FILE_TMP: $!";
   }
 }
@@ -181,11 +181,11 @@ if (defined $IPSET_FILE_FINAL) {
 my %CCIDR4 = ();	# per-country CIDR IPv4 ranges
 my %CCIDR6 = ();	# per-country CIDR IPv6 ranges
 foreach my $country (@COUNTRIES) {
-	$CCIDR4{$country} = Net::CIDR::Lite->new;	# start with empty list of IPv4 ranges
-	$CCIDR6{$country} = Net::CIDR::Lite->new;	# start with empty list of IPv6 ranges
+	$CCIDR4{$country} = Net::CIDR::Lite->new;	# start with empty list of IPv4 ranges for each country
+	$CCIDR6{$country} = Net::CIDR::Lite->new;	# start with empty list of IPv6 ranges for each country
 }
 
-# print one line
+# print one line (IPSET and/or PAM)
 my $char_count = 0;
 sub oneline($$) {
 	my ($country, $l) = @_;
@@ -218,10 +218,12 @@ sub oneline($$) {
 
 
 #
-# read data from RIPE DB (ipv4+ipv6)
+# read data from delegated RIPE DB (ipv4+ipv6)
 #
 
-# lines look like: "ripencc|FR|ipv4|2.0.0.0|1048576|20100712|allocated"
+# lines look like: "ripencc|FR|ipv4|2.0.0.0|1048576|20100712|allocated" or like
+# "arin|US|ipv4|192.69.235.0|256|20141117|allocated|b1c3f1f64ba66ec6630c8c7ac597e1cb" (extended format)
+
 my $count = 0;
 my $count_db4 = 0;
 my $count_db6 = 0;
@@ -287,7 +289,7 @@ while (<$f_url_whois6>) {
       my $country = $1;
       $DEBUG > 12 && print STDERR "    try6 country: $country\n";
       die "country $country for undefined inet6num??" if !defined $last_inetnum;
-      my $found_country = match_country_fuzzy ($country);	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
+      my $found_country = match_country_fuzzy ($country);	# usually it is just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
       if ($found_country) {
         $DEBUG > 10 && print STDERR "    found6 $found_country ($country) $last_inetnum\n";
         $CCIDR6{$found_country}->add($last_inetnum);
@@ -325,7 +327,7 @@ while (<$f_url_whois4>) {
       my $country = $1;
       $DEBUG > 12 && print STDERR "    try4 country: $country\n";
       die "country $country for undefined inetnum??" if !defined $last_inetnum;
-      my $found_country = match_country_fuzzy ($country);	# usually it just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
+      my $found_country = match_country_fuzzy ($country);	# usually it is just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
       if ($found_country) {
         $DEBUG > 10 && print STDERR "    found4 $found_country ($country) $last_inetnum\n";
         $CCIDR4{$found_country}->add_range($last_inetnum);
