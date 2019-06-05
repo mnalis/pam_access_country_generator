@@ -47,6 +47,8 @@ my %URLS_DELEGATED = (
 my @URLS_WHOIS = (
 		'ftp://ftp.arin.net/pub/rr/arin.db',
 		'http://ftp.afrinic.net/dbase/afrinic.db.gz',
+		'http://ftp.apnic.net/apnic/whois/apnic.db.inet6num.gz',
+		'http://ftp.apnic.net/apnic/whois/apnic.db.inetnum.gz',
 		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz',
 		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz',
 	);
@@ -324,11 +326,11 @@ sub parse_whois($) {
 		$last_obj = $_ if $new_block;		# first line in new block (after empty line) usually indicates type of object
 		if (m{^inet6?num:\h*(.+)\h*$}) {	# inetnum / inet6num
 		    $last_inetnum = lc $1;
-		    $DEBUG > 12 && print STDERR "  try inet(6)num: $last_inetnum\n";
-		    if ($last_inetnum =~ /:/) {
-			    die "invalid inet6num: $last_inetnum" if $last_inetnum !~ m{^[a-z0-9/:]+$};
-		    } else {
-			    die "invalid inetnum: $last_inetnum"  if $last_inetnum !~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\h*-\h*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+		    my $inet_str='inetnum'; $inet_str='inet6num' if $last_inetnum =~ /:/;
+
+		    $DEBUG > 12 && print STDERR "  try $inet_str: $last_inetnum\n";
+		    if ($last_inetnum !~ m{^([a-z0-9/:]+/\d{1,3})|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\h*-\h*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$}) {
+		    	die "invalid $inet_str: $last_inetnum";
 		    }
 		} elsif (m{^$}) {				# empty line indicates new record (but line made of whitespace only might be part of descr: in ARIN DB!)
 		    $last_inetnum = undef;

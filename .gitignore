@@ -1,7 +1,9 @@
 *~
 delegated-*-latest
-ripe.db.inet*
 arin.db
+afrinic.db.gz
+apnic.db.inet*.gz
+ripe.db.inet*.gz
 *.tmp
 vsftpd_pam_access.conf
 ipset.*.save
