@@ -26,14 +26,16 @@ local $ENV{'PATH'} = '/bin:/usr/bin';
 my $BUF_SIZE = 300 - length($LINE_PREFIX);	# 8192 - 100 - length($LINE_PREFIX);	# must at least few dozen bytes smaller than system BUFSIZ. it is inexact, so play it safe!
 #$BUF_SIZE = 1;	# DEBUG FIXME DELME - for one range per line (for easy diff while debugging)
 
+my $FASTFILTER4  = '| grep -F -e inetnum: -e country:';	# without filter, perl takes 74 seconds for WHOIS4, with "grep -F" filter only 20 seconds
+my $FASTFILTER6  = '| grep -F -e inet6num: -e country:';	# without filter, perl takes 16 seconds for WHOIS6, with "grep -F" filter only  4 seconds
+my $FASTFILTER = '| grep -F -e inetnum: -e inet6num: -e country:';	# without filter, perl is slower by about factor of 4!
 
 my $DECOMPRESS="gzip -dc";
 if ( -x '/usr/bin/pigz') { $DECOMPRESS="pigz -dc" }	# use faster decompressor if available
 
-my $FILTER4 = '| grep -F -e inetnum: -e country:';	# without filter, perl takes 74 seconds for WHOIS4, with "grep -F" filter only 20 seconds
-my $FILTER6 = '| grep -F -e inet6num: -e country:';	# without filter, perl takes 16 seconds for WHOIS6, with "grep -F" filter only  4 seconds
+my $WGET_CMD='curl -s';
+if ( -x '/usr/bin/wget') { $WGET_CMD='wget -q -O-' }
 
-my $WGET_CMD='wget -q -O-';
 my $URLDB='ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest';
 my $URLWHOIS6='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz';
 my $URLWHOIS4='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz';
@@ -51,23 +53,27 @@ GetOptions (	'debug|d=i'  => \$DEBUG,
                 'man' => \$opt_man
 ) or die("Error in command line arguments\n");
 
-my $URLDB_CMD = "$WGET_CMD $URLDB";
-my $URLWHOIS6_CMD = "$WGET_CMD $URLWHOIS6 | $DECOMPRESS $FILTER6";
-my $URLWHOIS4_CMD = "$WGET_CMD $URLWHOIS4 | $DECOMPRESS $FILTER4";
-if ($DEBUG > 8) {
-	if (-f 'delegated-ripencc-latest') {
-		$URLDB_CMD = "cat delegated-ripencc-latest";
-	        print STDERR "In DEBUG>=9; Using existing cached URLDB_CMD=$URLDB_CMD\n";
+# if DEBUG>=8, try using cached file if available
+sub maybe_try_cached($) {
+	my ($url) = @_;
+	my $filename = $url; $filename =~ s{^.*/}{}g;
+
+	my $cmd = "$WGET_CMD $url";	# by default, just use wget
+	if ($DEBUG > 8) {		# use cached file if possible on DEBUG>=9
+		if (-f $filename) {
+		        print STDERR "In DEBUG>=9; Using existing cached $filename\n";
+			$cmd = "cat $filename";
+		}
 	}
-	if (-f 'ripe.db.inet6num.gz') {
-	        $URLWHOIS6_CMD = "$DECOMPRESS ripe.db.inet6num.gz $FILTER6";
-	        print STDERR "In DEBUG>=9; Using existing cached URLWHOIS6_CMD=$URLWHOIS6_CMD\n";
-        }
-	if (-f 'ripe.db.inetnum.gz') {
-	        $URLWHOIS4_CMD = "$DECOMPRESS ripe.db.inetnum.gz $FILTER4";
-	        print STDERR "In DEBUG>=9; Using existing cached URLWHOIS4_CMD=$URLWHOIS4_CMD\n";
-	}
+
+	$cmd = "$cmd | $DECOMPRESS $FASTFILTER" if $filename =~ /\.gz$/;	# if file is compressed WHOIS DB
+	return $cmd;
 }
+
+my $URLDB_CMD = maybe_try_cached($URLDB);
+my $URLWHOIS6_CMD = maybe_try_cached($URLWHOIS6);
+my $URLWHOIS4_CMD = maybe_try_cached($URLWHOIS4);
+
 
 pod2usage(1) if $opt_help;
 pod2usage(-exitval => 0, -verbose => 2) if $opt_man;
