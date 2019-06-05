@@ -106,35 +106,6 @@ my $IPSET_FILE_TMP = $IPSET_FILE_FINAL . '.tmp' if defined $IPSET_FILE_FINAL;
 open (my $f_url_whois6, '-|', $URLWHOIS6_CMD) or die "can't get data from $URLWHOIS6_CMD: $!";
 open (my $f_url_whois4, '-|', $URLWHOIS4_CMD) or die "can't get data from $URLWHOIS4_CMD: $!";
 
-#
-# parse delegated-RIR-latest database (or extended version for ARIN)
-#
-
-open (my $f_urldb, '-|', $URLDB_CMD) or die "can't get data from $URLDB_CMD: $!";
-# 2|ripencc|1559685599|128918|19830705|20190604|+0200
-# 2|apnic|20190605|61086|19830613|20190604|+1000
-# 2|afrinic|20190605|6213|00000000|20190605|00000
-# 2|lacnic|20190604|34660|19870101|20190604|-0300
-# 2.3|arin|1559710817408|147407|19700101|20190605|-0400
-while (<$f_urldb>) {		# skip leading empty lines and comments
-	next if /^\s*$/;
-	next if /^\s*#/;
-	last;			# first non-empty non-comment line should be our DB header
-}
-
-my ($db_ver, $db_sig, $db_ts, $db_count, undef, $db_date, $db_tz) = split /\|/;
-
-#  sanity checks
-if ("$db_sig$db_ver" ne 'ripencc2') { die "invalid sig/version $db_sig/$db_ver" }
-
-# FIXME: this breaks when month changes, need smarter date handling, but it is not really needed, so remove for now
-#my $our_date = strftime "%Y%m%d", localtime;
-#if ($db_date < $our_date - 30) { die "database too old: $db_date << $our_date" }
-
-# hardcoded... expect at least  50k of 80k+ in 2014/04 - FIXME check version/mincount for each RIR (store expectations in %DELEGATED_EXPECT)
-if ($db_count < 50000) { die "$db_count should be > 80000, but is only $db_count" }
-
-$DEBUG and print STDERR "DB ver=$db_ver sig=$db_sig date=$db_date count=$db_count\n";
 
 # base-2 logarithm (to convert number of IP adresses to number of CIDR bits)
 sub log2($) {
@@ -232,8 +203,34 @@ sub oneline($$) {
 
 
 #
-# read data from delegated RIPE DB (ipv4+ipv6)
+# read data from delegated-RIR-latest DB (ipv4+ipv6)
 #
+
+open (my $f_urldb, '-|', $URLDB_CMD) or die "can't get data from $URLDB_CMD: $!";
+# 2|ripencc|1559685599|128918|19830705|20190604|+0200
+# 2|apnic|20190605|61086|19830613|20190604|+1000
+# 2|afrinic|20190605|6213|00000000|20190605|00000
+# 2|lacnic|20190604|34660|19870101|20190604|-0300
+# 2.3|arin|1559710817408|147407|19700101|20190605|-0400
+while (<$f_urldb>) {		# skip leading empty lines and comments
+	next if /^\s*$/;
+	next if /^\s*#/;
+	last;			# first non-empty non-comment line should be our DB header
+}
+
+my ($db_ver, $db_sig, $db_ts, $db_count, undef, $db_date, $db_tz) = split /\|/;
+
+#  sanity checks
+if ("$db_sig$db_ver" ne 'ripencc2') { die "invalid sig/version $db_sig/$db_ver" }
+
+# FIXME: this breaks when month changes, need smarter date handling, but it is not really needed, so remove for now
+#my $our_date = strftime "%Y%m%d", localtime;
+#if ($db_date < $our_date - 30) { die "database too old: $db_date << $our_date" }
+
+# hardcoded... expect at least  50k of 80k+ in 2014/04 - FIXME check version/mincount for each RIR (store expectations in %DELEGATED_EXPECT)
+if ($db_count < 50000) { die "$db_count should be > 80000, but is only $db_count" }
+
+$DEBUG and print STDERR "DB ver=$db_ver sig=$db_sig date=$db_date count=$db_count\n";
 
 # lines look like: "ripencc|FR|ipv4|2.0.0.0|1048576|20100712|allocated"
 # 	  or like: "arin|US|ipv4|192.69.235.0|256|20141117|allocated|b1c3f1f64ba66ec6630c8c7ac597e1cb" (extended format)
