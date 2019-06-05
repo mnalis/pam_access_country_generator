@@ -26,9 +26,7 @@ local $ENV{'PATH'} = '/bin:/usr/bin';
 my $BUF_SIZE = 300 - length($LINE_PREFIX);	# 8192 - 100 - length($LINE_PREFIX);	# must at least few dozen bytes smaller than system BUFSIZ. it is inexact, so play it safe!
 #$BUF_SIZE = 1;	# DEBUG FIXME DELME - for one range per line (for easy diff while debugging)
 
-my $FASTFILTER4  = '| grep -F -e inetnum: -e country:';	# without filter, perl takes 74 seconds for WHOIS4, with "grep -F" filter only 20 seconds
-my $FASTFILTER6  = '| grep -F -e inet6num: -e country:';	# without filter, perl takes 16 seconds for WHOIS6, with "grep -F" filter only  4 seconds
-my $FASTFILTER = '| grep -F -e inetnum: -e inet6num: -e country:';	# without filter, perl is slower by about factor of 4!
+my $FASTFILTER = '| grep -F -e inetnum: -e inet6num: -e country:';	# without filter, perl is slower by about factor of 4! (20 vs 72 secs for IPv4, or 4 vs 16 sec for IPv6)
 
 my $DECOMPRESS="gzip -dc";
 if ( -x '/usr/bin/pigz') { $DECOMPRESS="pigz -dc" }	# use faster decompressor if available
@@ -36,7 +34,15 @@ if ( -x '/usr/bin/pigz') { $DECOMPRESS="pigz -dc" }	# use faster decompressor if
 my $WGET_CMD='curl -s';
 if ( -x '/usr/bin/wget') { $WGET_CMD='wget -q -O-' }
 
-my $URLDB='ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest';
+# all delegated databases (uses RIPE mirror, should use master for each probably)
+my %URLDBS= (
+		'ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest'		=> 100_000,
+		'ftp://ftp.ripe.net/pub/stats/afrinic/delegated-afrinic-latest'		=> 5_000,
+		'ftp://ftp.ripe.net/pub/stats/apnic/delegated-apnic-latest' 		=> 50_000,
+		'ftp://ftp.ripe.net/pub/stats/lacnic/delegated-lacnic-extended-latest'	=> 30_000,
+		'ftp://ftp.ripe.net/pub/stats/arin/delegated-arin-extended-latest'	=> 120_000,
+	);
+
 my $URLWHOIS6='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz';
 my $URLWHOIS4='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz';
 
@@ -66,7 +72,7 @@ if (defined $IPSET_FILE_FINAL) {
 	if ($IPSET_FILE_FINAL =~ m{^([a-z/_.-]+)$}i) { $IPSET_FILE_FINAL = $1 } else { die "invalid IPSET file specified" }	# untaint
 }
 if (defined $PAM_FILE_FINAL) {
-	if ($PAM_FILE_FINAL =~ m{^([a-z/_.-]+)$}i) { $PAM_FILE_FINAL = $1 } else { die "invalid PAM file specified" }		# untaint
+	if ($PAM_FILE_FINAL   =~ m{^([a-z/_.-]+)$}i) { $PAM_FILE_FINAL = $1 }   else { die "invalid PAM file specified" }	# untaint
 }
 
 
@@ -189,7 +195,7 @@ sub oneline($$) {
 #
 sub parse_delegated($$) {
 	my ($urldb_cmd, $min_count) = @_;
-	$DEBUG and print STDERR "Processing delegeted DB\n";
+	$DEBUG > 9 and print STDERR "Processing delegated DB\n";
 	open (my $f_urldb, '-|', $urldb_cmd) or die "can't get data from $urldb_cmd: $!";
 
 	# Header format:
@@ -254,7 +260,7 @@ sub parse_delegated($$) {
 	}
 	close $f_urldb;
 	# final validity check
-	if ($count ne $db_count) { die "$db_sig delegated DB at $URLDB count mismatch $count != $db_count" }
+	if ($count ne $db_count) { die "$db_sig delegated DB count mismatch $count != $db_count" }
 	$DEBUG and print STDERR "$db_sig delegated DB finished processing $db_count networks (added $count_db4 IPv4 and $count_db6 IPv6)\n";
 }
 
@@ -275,9 +281,13 @@ sub maybe_try_cached($) {
 	return $cmd;
 }
 
-
-my $URLDB_CMD = maybe_try_cached($URLDB);
-parse_delegated($URLDB_CMD, 50000);
+#
+# parse delegated RIR db for each RIR
+#
+foreach my $url_db (keys %URLDBS) {
+	my $urldb_cmd = maybe_try_cached($url_db);
+	parse_delegated($urldb_cmd, $URLDBS{$url_db});
+}
 
 #
 # read data from RIPE IPv6 WHOIS 
