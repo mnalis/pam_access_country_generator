@@ -284,7 +284,7 @@ sub maybe_try_cached($) {
 		}
 	}
 
-	if ($filename =~ /inet.?num\.gz$/) {
+	if ($filename =~ /ripe.*inet.?num\.gz$/) {	# FIXME apnic-*inet*num.gz are broken because of continuation lines...
 		$cmd = "$cmd | $DECOMPRESS $FASTFILTER" ;	# if file is compressed SPLIT [inet(6)num-only] WHOIS DB (like ripe.db.inet6num.gz or ripe.db.inetnum.gz), then use FASTFILTER for 400% speedup
 	} elsif ($filename =~ /\.gz$/) {
 		$cmd = "$cmd | $DECOMPRESS" ;			# otherwise, just uncompress WHOIS file
@@ -329,7 +329,14 @@ sub parse_whois($) {
 		    my $inet_str='inetnum'; $inet_str='inet6num' if $last_inetnum =~ /:/;
 
 		    $DEBUG > 12 && print STDERR "  try $inet_str: $last_inetnum\n";
-		    if ($last_inetnum !~ m{^([a-z0-9/:]+/\d{1,3})|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\h*-\h*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$}) {
+		    while ($last_inetnum !~ m{^([a-z0-9/:]+/\d{1,3})|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\h*-\h*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$}) {
+		    	if ($_ = <$f_url_whois>) {
+		    		if (/^\h+\S+/) {
+		    			$DEBUG > 1 and print STDERR "WARNING: invalid $inet_str: $last_inetnum, but looks like continuation line with $_";
+		    			$last_inetnum .= $_;
+		    			next;
+				}
+		    	}
 		    	die "invalid $inet_str: $last_inetnum";
 		    }
 		} elsif (m{^$}) {				# empty line indicates new record (but line made of whitespace only might be part of descr: in ARIN DB!)
