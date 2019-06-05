@@ -302,9 +302,9 @@ foreach my $url_db (keys %URLDBS) {
 # 
 
 sub parse_whois6($) {
-	my ($URLWHOIS6_CMD) = @_;
+	my ($whois_cmd) = @_;
 	$DEBUG and print STDERR "Processing WHOIS6\n";
-	open (my $f_url_whois6, '-|', $URLWHOIS6_CMD) or die "can't get data from $URLWHOIS6_CMD: $!";
+	open (my $f_url_whois6, '-|', $whois_cmd) or die "can't get data from $whois_cmd: $!";
 	my $last_inetnum = undef;
 	my $count_whois6 = 0;
 	while (<$f_url_whois6>) {
@@ -346,9 +346,9 @@ parse_whois6($URLWHOIS6_CMD);
 #
 
 sub parse_whois4($) {
-	my ($URLWHOIS4_CMD) = @_;
+	my ($whois_cmd) = @_;
 	$DEBUG and print STDERR "Processing WHOIS4\n";
-	open (my $f_url_whois4, '-|', $URLWHOIS4_CMD) or die "can't get data from $URLWHOIS4_CMD: $!";
+	open (my $f_url_whois4, '-|', $whois_cmd) or die "can't get data from $whois_cmd: $!";
 	my $last_inetnum = undef;
 	my $count_whois4 = 0;
 	while (<$f_url_whois4>) {
