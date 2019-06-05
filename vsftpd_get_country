@@ -35,7 +35,7 @@ my $WGET_CMD='curl -s';
 if ( -x '/usr/bin/wget') { $WGET_CMD='wget -q -O-' }
 
 # all delegated databases (uses RIPE mirror, should use master for each probably)
-my %URLDBS= (
+my %URLS_DELEGATED = (
 		'ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest'		=> 100_000,
 		'ftp://ftp.ripe.net/pub/stats/afrinic/delegated-afrinic-latest'		=> 5_000,
 		'ftp://ftp.ripe.net/pub/stats/apnic/delegated-apnic-latest' 		=> 50_000,
@@ -43,8 +43,11 @@ my %URLDBS= (
 		'ftp://ftp.ripe.net/pub/stats/arin/delegated-arin-extended-latest'	=> 120_000,
 	);
 
-my $URLWHOIS6='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz';
-my $URLWHOIS4='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz';
+# all WHOIS DATABASES (FIXME: missing ARIN, LACNIC, AFRINIC, APNIC !)
+my @URLS_WHOIS = (
+		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz',
+		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz',
+	);
 
 my $opt_help = 0;
 my $opt_man = 0;
@@ -343,22 +346,18 @@ sub parse_whois($) {
 #
 # parse delegated RIR db for each RIR
 #
-foreach my $url_db (keys %URLDBS) {
-	my $urldb_cmd = maybe_try_cached($url_db);
-	parse_delegated($urldb_cmd, $URLDBS{$url_db});
+foreach my $url_delegated (keys %URLS_DELEGATED) {
+	my $urldb_cmd = maybe_try_cached($url_delegated);
+	parse_delegated($urldb_cmd, $URLS_DELEGATED{$url_delegated});
 }
 
 #
-# read data from RIPE IPv6 WHOIS 
+# read data from WHOIS databases for each RIR
 #
-my $URLWHOIS6_CMD = maybe_try_cached($URLWHOIS6);
-parse_whois($URLWHOIS6_CMD);
-
-#
-# read data from RIPE IPv4 WHOIS 
-#
-my $URLWHOIS4_CMD = maybe_try_cached($URLWHOIS4);
-parse_whois($URLWHOIS4_CMD);
+foreach my $url_whois (@URLS_WHOIS) {
+	my $urldb_cmd = maybe_try_cached($url_whois);
+	parse_whois($urldb_cmd);
+}
 
 
 #
