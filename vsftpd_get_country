@@ -40,7 +40,6 @@ my $URLDB='ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest';
 my $URLWHOIS6='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz';
 my $URLWHOIS4='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz';
 
-
 my $opt_help = 0;
 my $opt_man = 0;
 GetOptions (	'debug|d=i'  => \$DEBUG,
@@ -52,23 +51,6 @@ GetOptions (	'debug|d=i'  => \$DEBUG,
                 'help|h|?' => \$opt_help,
                 'man' => \$opt_man
 ) or die("Error in command line arguments\n");
-
-# if DEBUG>=8, try using cached file if available
-sub maybe_try_cached($) {
-	my ($url) = @_;
-	my $filename = $url; $filename =~ s{^.*/}{}g;
-
-	my $cmd = "$WGET_CMD $url";	# by default, just use wget
-	if ($DEBUG > 8) {		# use cached file if possible on DEBUG>=9
-		if (-f $filename) {
-		        print STDERR "In DEBUG>=9; Using existing cached $filename\n";
-			$cmd = "cat $filename";
-		}
-	}
-
-	$cmd = "$cmd | $DECOMPRESS $FASTFILTER" if $filename =~ /\.gz$/;	# if file is compressed WHOIS DB
-	return $cmd;
-}
 
 
 
@@ -275,6 +257,24 @@ sub parse_delegated($$) {
 	if ($count ne $db_count) { die "$db_sig delegated DB at $URLDB count mismatch $count != $db_count" }
 	$DEBUG and print STDERR "$db_sig delegated DB finished processing $db_count networks (added $count_db4 IPv4 and $count_db6 IPv6)\n";
 }
+
+# if DEBUG>=8, try using cached file if available
+sub maybe_try_cached($) {
+	my ($url) = @_;
+	my $filename = $url; $filename =~ s{^.*/}{}g;
+
+	my $cmd = "$WGET_CMD $url";	# by default, just use wget
+	if ($DEBUG > 8) {		# use cached file if possible on DEBUG>=9
+		if (-f $filename) {
+		        print STDERR "In DEBUG>=9; Using existing cached $filename\n";
+			$cmd = "cat $filename";
+		}
+	}
+
+	$cmd = "$cmd | $DECOMPRESS $FASTFILTER" if $filename =~ /\.gz$/;	# if file is compressed WHOIS DB
+	return $cmd;
+}
+
 
 my $URLDB_CMD = maybe_try_cached($URLDB);
 parse_delegated($URLDB_CMD, 50000);
