@@ -203,76 +203,77 @@ sub oneline($$) {
 
 
 #
-# read data from delegated-RIR-latest DB (ipv4+ipv6)
+# read data from delegated-RIR-latest(-extended) DB (ipv4+ipv6)
 #
-
-open (my $f_urldb, '-|', $URLDB_CMD) or die "can't get data from $URLDB_CMD: $!";
-# 2|ripencc|1559685599|128918|19830705|20190604|+0200
-# 2|apnic|20190605|61086|19830613|20190604|+1000
-# 2|afrinic|20190605|6213|00000000|20190605|00000
-# 2|lacnic|20190604|34660|19870101|20190604|-0300
-# 2.3|arin|1559710817408|147407|19700101|20190605|-0400
-while (<$f_urldb>) {		# skip leading empty lines and comments
-	next if /^\s*$/;
-	next if /^\s*#/;
-	last;			# first non-empty non-comment line should be our DB header
-}
-
-my ($db_ver, $db_sig, $db_ts, $db_count, undef, $db_date, $db_tz) = split /\|/;
-
-#  sanity checks
-if ("$db_sig$db_ver" ne 'ripencc2') { die "invalid sig/version $db_sig/$db_ver" }
-
-# FIXME: this breaks when month changes, need smarter date handling, but it is not really needed, so remove for now
-#my $our_date = strftime "%Y%m%d", localtime;
-#if ($db_date < $our_date - 30) { die "database too old: $db_date << $our_date" }
-
-# hardcoded... expect at least  50k of 80k+ in 2014/04 - FIXME check version/mincount for each RIR (store expectations in %DELEGATED_EXPECT)
-if ($db_count < 50000) { die "$db_count should be > 80000, but is only $db_count" }
-
-$DEBUG and print STDERR "DB ver=$db_ver sig=$db_sig date=$db_date count=$db_count\n";
-
-# lines look like: "ripencc|FR|ipv4|2.0.0.0|1048576|20100712|allocated"
-# 	  or like: "arin|US|ipv4|192.69.235.0|256|20141117|allocated|b1c3f1f64ba66ec6630c8c7ac597e1cb" (extended format)
-
-my $count = 0;
-my $count_db4 = 0;
-my $count_db6 = 0;
-while (my $line = <$f_urldb>) {
-	my ($l_sig, $l_country, $l_type, $l_ip, $l_size, $l_rest) = split /\|/, $line, 6;
-	if ($l_sig ne 'ripencc') { die "invalid signature in line $line" }
-	next if $l_country eq '*';	# skip summary lines
-	$count++;
-	next if $l_type !~ /^ipv[46]$/;	# only interested in IPv4/IPv6
-	$DEBUG > 12 && print STDERR "    try country: $l_country\n";
-	next if !match_country_exact ($l_country);	# not interested in other countries
-
-	my $cidr;
-	if ($l_type eq 'ipv6') {	# IPv6
-		$cidr = $l_size;
-		my $range = "$l_ip/$cidr";
-		$DEBUG > 10 && print STDERR "    found $l_ip/$cidr (size: $l_size) in country: $l_country\n";
-                $CCIDR6{$l_country}->add($range);
-		$count_db6++;
-	} else {			# IPv4
-		$cidr = 32-log2($l_size);
-		if ($cidr - int($cidr)) {
-			# FIXME: alternatively, we could just skip over it, and rely on WHOIS4 to fix it. Or we could calculate an range manually and add that to be precise.
-			$DEBUG && print STDERR "WARNING: non-CIDR size $l_size for $l_ip/$cidr in country $l_country, upgrading CIDR to bigger one (better be safe than sorry)\n";
-			$cidr = int($cidr);	# or we could add "+1" here if we would rather just add partial network range...
-		}
-		my $range = "$l_ip/$cidr";
-		$DEBUG > 10 && print STDERR "    found $l_ip/$cidr (size: $l_size) in country: $l_country\n";
-                $CCIDR4{$l_country}->add($range);
-		$count_db4++;
+sub parse_delegated($) {
+	my ($urldb_cmd) = @_;
+	open (my $f_urldb, '-|', $urldb_cmd) or die "can't get data from $urldb_cmd: $!";
+	# 2|ripencc|1559685599|128918|19830705|20190604|+0200
+	# 2|apnic|20190605|61086|19830613|20190604|+1000
+	# 2|afrinic|20190605|6213|00000000|20190605|00000
+	# 2|lacnic|20190604|34660|19870101|20190604|-0300
+	# 2.3|arin|1559710817408|147407|19700101|20190605|-0400
+	while (<$f_urldb>) {		# skip leading empty lines and comments
+		next if /^\s*$/;
+		next if /^\s*#/;
+		last;			# first non-empty non-comment line should be our DB header
 	}
+
+	my ($db_ver, $db_sig, $db_ts, $db_count, undef, $db_date, $db_tz) = split /\|/;
+
+	#  sanity checks
+	if ("$db_sig$db_ver" ne 'ripencc2') { die "invalid sig/version $db_sig/$db_ver" }
+
+	# FIXME: this breaks when month changes, need smarter date handling, but it is not really needed, so remove for now
+	#my $our_date = strftime "%Y%m%d", localtime;
+	#if ($db_date < $our_date - 30) { die "database too old: $db_date << $our_date" }
+
+	# hardcoded... expect at least  50k of 80k+ in 2014/04 - FIXME check version/mincount for each RIR (store expectations in %DELEGATED_EXPECT)
+	if ($db_count < 50000) { die "$db_count should be > 80000, but is only $db_count" }
+
+	$DEBUG and print STDERR "DB ver=$db_ver sig=$db_sig date=$db_date count=$db_count\n";
+
+	# lines look like: "ripencc|FR|ipv4|2.0.0.0|1048576|20100712|allocated"
+	# 	  or like: "arin|US|ipv4|192.69.235.0|256|20141117|allocated|b1c3f1f64ba66ec6630c8c7ac597e1cb" (extended format)
+
+	my $count = 0;
+	my $count_db4 = 0;
+	my $count_db6 = 0;
+	while (my $line = <$f_urldb>) {
+		my ($l_sig, $l_country, $l_type, $l_ip, $l_size, $l_rest) = split /\|/, $line, 6;
+		if ($l_sig ne 'ripencc') { die "invalid signature in line $line" }
+		next if $l_country eq '*';	# skip summary lines
+		$count++;
+		next if $l_type !~ /^ipv[46]$/;	# only interested in IPv4/IPv6
+		$DEBUG > 12 && print STDERR "    try country: $l_country\n";
+		next if !match_country_exact ($l_country);	# not interested in other countries
+
+		my $cidr;
+		if ($l_type eq 'ipv6') {	# IPv6
+			$cidr = $l_size;
+			my $range = "$l_ip/$cidr";
+			$DEBUG > 10 && print STDERR "    found $l_ip/$cidr (size: $l_size) in country: $l_country\n";
+			$CCIDR6{$l_country}->add($range);
+			$count_db6++;
+		} else {			# IPv4
+			$cidr = 32-log2($l_size);
+			if ($cidr - int($cidr)) {
+				# FIXME: alternatively, we could just skip over it, and rely on WHOIS4 to fix it. Or we could calculate an range manually and add that to be precise.
+				$DEBUG && print STDERR "WARNING: non-CIDR size $l_size for $l_ip/$cidr in country $l_country, upgrading CIDR to bigger one (better be safe than sorry)\n";
+				$cidr = int($cidr);	# or we could add "+1" here if we would rather just add partial network range...
+			}
+			my $range = "$l_ip/$cidr";
+			$DEBUG > 10 && print STDERR "    found $l_ip/$cidr (size: $l_size) in country: $l_country\n";
+			$CCIDR4{$l_country}->add($range);
+			$count_db4++;
+		}
+	}
+	close $f_urldb;
+	# final validity check
+	if ($count ne $db_count) { die "RIPEDB at $URLDB count mismatch $count != $db_count" }
+	$DEBUG and print STDERR "RIPE DB finished processing $db_count networks (added $count_db4 IPv4 and $count_db6 IPv6)\n";
 }
-close $f_urldb;
-# final validity check
-if ($count ne $db_count) { die "RIPEDB at $URLDB count mismatch $count != $db_count" }
-$DEBUG and print STDERR "RIPE DB finished processing $db_count networks (added $count_db4 IPv4 and $count_db6 IPv6)\n";
-
-
+parse_delegated($URLDB_CMD);
 
 #
 # read data from RIPE IPv6 WHOIS 
