@@ -103,10 +103,6 @@ my $PAM_FILE_TMP = $PAM_FILE_FINAL . '.tmp' if defined $PAM_FILE_FINAL;
 my $IPSET_FILE_TMP = $IPSET_FILE_FINAL . '.tmp' if defined $IPSET_FILE_FINAL;
 
 
-open (my $f_url_whois6, '-|', $URLWHOIS6_CMD) or die "can't get data from $URLWHOIS6_CMD: $!";
-open (my $f_url_whois4, '-|', $URLWHOIS4_CMD) or die "can't get data from $URLWHOIS4_CMD: $!";
-
-
 # base-2 logarithm (to convert number of IP adresses to number of CIDR bits)
 sub log2($) {
 	my $n=shift;
@@ -205,9 +201,12 @@ sub oneline($$) {
 #
 # read data from delegated-RIR-latest(-extended) DB (ipv4+ipv6)
 #
-sub parse_delegated($) {
-	my ($urldb_cmd) = @_;
+sub parse_delegated($$) {
+	my ($urldb_cmd, $min_count) = @_;
+	$DEBUG and print STDERR "Processing delegeted DB\n";
 	open (my $f_urldb, '-|', $urldb_cmd) or die "can't get data from $urldb_cmd: $!";
+
+	# Header format:
 	# 2|ripencc|1559685599|128918|19830705|20190604|+0200
 	# 2|apnic|20190605|61086|19830613|20190604|+1000
 	# 2|afrinic|20190605|6213|00000000|20190605|00000
@@ -218,18 +217,17 @@ sub parse_delegated($) {
 		next if /^\s*#/;
 		last;			# first non-empty non-comment line should be our DB header
 	}
-
 	my ($db_ver, $db_sig, $db_ts, $db_count, undef, $db_date, $db_tz) = split /\|/;
 
-	#  sanity checks
-	if ("$db_sig$db_ver" ne 'ripencc2') { die "invalid sig/version $db_sig/$db_ver" }
+	# header sanity checks
+	if ("$db_sig$db_ver" !~ /^(ripencc|apnic|afrinic|lacnic|arin)2(\.3)?$/) { die "invalid sig/version $db_sig/$db_ver" }
 
 	# FIXME: this breaks when month changes, need smarter date handling, but it is not really needed, so remove for now
 	#my $our_date = strftime "%Y%m%d", localtime;
 	#if ($db_date < $our_date - 30) { die "database too old: $db_date << $our_date" }
 
 	# hardcoded... expect at least  50k of 80k+ in 2014/04 - FIXME check version/mincount for each RIR (store expectations in %DELEGATED_EXPECT)
-	if ($db_count < 50000) { die "$db_count should be > 80000, but is only $db_count" }
+	if ($db_count < $min_count) { die "$db_count should be > $min_count, but is only $db_count" }
 
 	$DEBUG and print STDERR "DB ver=$db_ver sig=$db_sig date=$db_date count=$db_count\n";
 
@@ -241,7 +239,7 @@ sub parse_delegated($) {
 	my $count_db6 = 0;
 	while (my $line = <$f_urldb>) {
 		my ($l_sig, $l_country, $l_type, $l_ip, $l_size, $l_rest) = split /\|/, $line, 6;
-		if ($l_sig ne 'ripencc') { die "invalid signature in line $line" }
+		if ($l_sig ne $db_sig) { die "invalid signature in line $line; $l_sig != $db_sig" }
 		next if $l_country eq '*';	# skip summary lines
 		$count++;
 		next if $l_type !~ /^ipv[46]$/;	# only interested in IPv4/IPv6
@@ -270,10 +268,10 @@ sub parse_delegated($) {
 	}
 	close $f_urldb;
 	# final validity check
-	if ($count ne $db_count) { die "RIPEDB at $URLDB count mismatch $count != $db_count" }
-	$DEBUG and print STDERR "RIPE DB finished processing $db_count networks (added $count_db4 IPv4 and $count_db6 IPv6)\n";
+	if ($count ne $db_count) { die "$db_sig delegated DB at $URLDB count mismatch $count != $db_count" }
+	$DEBUG and print STDERR "$db_sig delegated DB finished processing $db_count networks (added $count_db4 IPv4 and $count_db6 IPv6)\n";
 }
-parse_delegated($URLDB_CMD);
+parse_delegated($URLDB_CMD, 50000);
 
 #
 # read data from RIPE IPv6 WHOIS 
@@ -288,6 +286,7 @@ parse_delegated($URLDB_CMD);
 # 
 
 $DEBUG and print STDERR "Processing WHOIS6\n";
+open (my $f_url_whois6, '-|', $URLWHOIS6_CMD) or die "can't get data from $URLWHOIS6_CMD: $!";
 my $last_inetnum = undef;
 my $count_whois6 = 0;
 while (<$f_url_whois6>) {
@@ -326,6 +325,7 @@ $DEBUG and print STDERR "WHOIS6 added $count_whois6 networks\n";
 #
 
 $DEBUG and print STDERR "Processing WHOIS4\n";
+open (my $f_url_whois4, '-|', $URLWHOIS4_CMD) or die "can't get data from $URLWHOIS4_CMD: $!";
 $last_inetnum = undef;
 my $count_whois4 = 0;
 while (<$f_url_whois4>) {
