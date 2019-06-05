@@ -43,10 +43,11 @@ my %URLS_DELEGATED = (
 		'ftp://ftp.ripe.net/pub/stats/arin/delegated-arin-extended-latest'	=> 120_000,
 	);
 
-# all WHOIS DATABASES (FIXME: missing ARIN, LACNIC, AFRINIC, APNIC !)
+# all WHOIS DATABASES (FIXME: missing LACNIC, AFRINIC, APNIC !)
 my @URLS_WHOIS = (
 		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz',
 		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz',
+		'ftp://ftp.arin.net/pub/rr/arin.db',
 	);
 
 my $opt_help = 0;
