@@ -34,7 +34,7 @@ if ( -x '/usr/bin/pigz') { $DECOMPRESS="pigz -dc" }	# use faster decompressor if
 my $WGET_CMD='curl -s';
 if ( -x '/usr/bin/wget') { $WGET_CMD='wget -q -O-' }
 
-# all delegated databases (uses RIPE mirror, should use master for each probably)
+# all delegated databases (uses RIPE mirror, should use master for each probably) with estimated mininum of inet(6)nums
 my %URLS_DELEGATED = (
 		'ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest'		=> 100_000,
 		'ftp://ftp.ripe.net/pub/stats/afrinic/delegated-afrinic-latest'		=> 5_000,
@@ -43,7 +43,7 @@ my %URLS_DELEGATED = (
 		'ftp://ftp.ripe.net/pub/stats/arin/delegated-arin-extended-latest'	=> 120_000,
 	);
 
-# all WHOIS DATABASES (FIXME: missing LACNIC, AFRINIC, APNIC !)
+# all WHOIS DATABASES
 my @URLS_WHOIS = (
 		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz',
 		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz',
@@ -199,7 +199,7 @@ sub oneline($$) {
 #
 sub parse_delegated($$) {
 	my ($urldb_cmd, $min_count) = @_;
-	$DEBUG > 9 and print STDERR "Processing delegated DB\n";
+	$DEBUG and print STDERR "Processing delegated DB ($urldb_cmd)\n";
 	open (my $f_urldb, '-|', $urldb_cmd) or die "can't get data from $urldb_cmd: $!";
 
 	# Header format:
@@ -281,7 +281,12 @@ sub maybe_try_cached($) {
 		}
 	}
 
-	$cmd = "$cmd | $DECOMPRESS $FASTFILTER" if $filename =~ /\.gz$/;	# if file is compressed WHOIS DB
+	if ($filename =~ /inet.?num\.gz$/) {
+		$cmd = "$cmd | $DECOMPRESS $FASTFILTER" ;	# if file is compressed SPLIT [inet(6)num-only] WHOIS DB (like ripe.db.inet6num.gz or ripe.db.inetnum.gz), then use FASTFILTER for 400% speedup
+	} elsif ($filename =~ /\.gz$/) {
+		$cmd = "$cmd | $DECOMPRESS" ;			# otherwise, just uncompress WHOIS file
+	}
+	$DEBUG > 11 and print STDERR "Using cmd: $cmd";
 	return $cmd;
 }
 
@@ -307,26 +312,33 @@ sub maybe_try_cached($) {
 #
 sub parse_whois($) {
 	my ($whois_cmd) = @_;
-	$DEBUG and print STDERR "Processing WHOIS\n";
+	$DEBUG and print STDERR "Processing WHOIS ($whois_cmd)\n";
 	open (my $f_url_whois, '-|', $whois_cmd) or die "can't get data from $whois_cmd: $!";
 	my $last_inetnum = undef;
+	my $last_obj = undef;
 	my $count_whois4 = 0;
 	my $count_whois6 = 0;
 	while (<$f_url_whois>) {
 		if (m{^inet6?num:\h*(.+)\h*$}) {	# inetnum / inet6num
-		    $last_inetnum = $1;
+		    $last_inetnum = lc $1;
 		    $DEBUG > 12 && print STDERR "  try inet(6)num: $last_inetnum\n";
 		    if ($last_inetnum =~ /:/) {
 			    die "invalid inet6num: $last_inetnum" if $last_inetnum !~ m{^[a-z0-9/:]+$};
 		    } else {
 			    die "invalid inetnum: $last_inetnum"  if $last_inetnum !~ /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\h*-\h*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 		    }
-		} elsif (m{^\h*$}) {				# empty line indicates new record
+		} elsif (m{^$}) {				# empty line indicates new record (but line made of whitespace only might be part of descr: in ARIN DB!)
 		    $last_inetnum = undef;
+		    $last_obj = undef;
+		} elsif (m{^(route|route6|route-set|as-set|aut-num|inet-rtr|key-cert):}) {	# known objects which could have "country:" but are not interesting to us. FIXME: maybe could use route/route6?
+		    $last_obj = $1;
 		} elsif (m{^country:\h*(.+)\h*$}) {		# country
 		    my $country = $1;
 		    $DEBUG > 12 && print STDERR "    try country: $country\n";
-		    die "country $country for undefined inet6num??" if !defined $last_inetnum;
+		    if (!defined $last_inetnum) {
+			    next if defined $last_obj;
+			    die "country $country for undefined inet(6)num and no last_obj??";
+		    }
 		    my $found_country = match_country_fuzzy ($country);	# usually it is just 'Country: HR', but it can contain comments and more. So we err on the side of caution (including more than needed)
 		    if ($found_country) {
 			$DEBUG > 10 && print STDERR "    found $found_country ($country) $last_inetnum\n";

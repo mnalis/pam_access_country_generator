@@ -1,7 +1,12 @@
 + parse other delegated-RIR-latest DBs
 
-- parse arin.db and other RIR WHOIS databases
++ parse arin.db
   ex. 47.64.0.131 is "DE", but in ARIN whois, not RIPE's!
+
+- parse  other RIR WHOIS databases
+	- LACNIC
+	- AFRINIC
+	- APNIC
 
 +? fix (and workaround) for SI - and find and report other broken countries!
 	00:00:01     found 193.164.137.0/21.6780719051126 (size: 1280) in country: SI
