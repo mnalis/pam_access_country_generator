@@ -107,8 +107,19 @@ open (my $f_urldb, '-|', $URLDB_CMD) or die "can't get data from $URLDB_CMD: $!"
 open (my $f_url_whois6, '-|', $URLWHOIS6_CMD) or die "can't get data from $URLWHOIS6_CMD: $!";
 open (my $f_url_whois4, '-|', $URLWHOIS4_CMD) or die "can't get data from $URLWHOIS4_CMD: $!";
 
-# 2|ripencc|1396648799|85084|19830705|20140404|+0200
-my ($db_ver, $db_sig, $db_ts, $db_count, undef, $db_date, $db_tz) = split /\|/, <$f_urldb>;
+# 2|ripencc|1559685599|128918|19830705|20190604|+0200
+# 2|apnic|20190605|61086|19830613|20190604|+1000
+# 2|afrinic|20190605|6213|00000000|20190605|00000
+# 2|lacnic|20190604|34660|19870101|20190604|-0300
+# 2.3|arin|1559710817408|147407|19700101|20190605|-0400
+my $heading;
+while (<$f_urldb>) {		# skip leading empty lines and comments
+	next if /^\s*$/;
+	next if /^\s*#/;
+	last;
+}
+
+my ($db_ver, $db_sig, $db_ts, $db_count, undef, $db_date, $db_tz) = split /\|/;
 
 #  sanity checks
 if ("$db_sig$db_ver" ne 'ripencc2') { die "invalid sig/version $db_sig/$db_ver" }
