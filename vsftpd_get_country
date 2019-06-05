@@ -33,12 +33,10 @@ if ( -x '/usr/bin/pigz') { $DECOMPRESS="pigz -dc" }	# use faster decompressor if
 my $FILTER4 = '| grep -F -e inetnum: -e country:';	# without filter, perl takes 74 seconds for WHOIS4, with "grep -F" filter only 20 seconds
 my $FILTER6 = '| grep -F -e inet6num: -e country:';	# without filter, perl takes 16 seconds for WHOIS6, with "grep -F" filter only  4 seconds
 
+my $WGET_CMD='wget -q -O-';
 my $URLDB='ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest';
-my $URLDB_CMD = "wget -q -O- $URLDB";
 my $URLWHOIS6='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz';
-my $URLWHOIS6_CMD = "wget -q -O- $URLWHOIS6 | $DECOMPRESS $FILTER6";
 my $URLWHOIS4='ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz';
-my $URLWHOIS4_CMD = "wget -q -O- $URLWHOIS4 | $DECOMPRESS $FILTER4";
 
 
 my $opt_help = 0;
@@ -53,6 +51,9 @@ GetOptions (	'debug|d=i'  => \$DEBUG,
                 'man' => \$opt_man
 ) or die("Error in command line arguments\n");
 
+my $URLDB_CMD = "$WGET_CMD $URLDB";
+my $URLWHOIS6_CMD = "$WGET_CMD $URLWHOIS6 | $DECOMPRESS $FILTER6";
+my $URLWHOIS4_CMD = "$WGET_CMD $URLWHOIS4 | $DECOMPRESS $FILTER4";
 if ($DEBUG > 8) {
 	if (-f 'delegated-ripencc-latest') {
 		$URLDB_CMD = "cat delegated-ripencc-latest";
