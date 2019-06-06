@@ -3,9 +3,9 @@
 Original name is somewhat of misnomer, as it is no longer for vsftpd only
 (or even for PAM only), but also supports iptables/ipset firewall rules.
 
-Generates ipset(8) ruleset and pam_access(8) config file allowing only specific country from RIPE database
-(some support for other RIRs are there too - parsing delegated DB for all RIRs, and WHOIS for ARIN. 
-See TODO.txt for missing RIRs)
+Generates ipset(8) ruleset and pam_access(8) config file allowing only specific country 
+from RIR databases (it supports all delegated databases, as well as all WHOIS databases 
+from RIPE, ARIN, APNIC, LACNIC, AFRINIC).
 
 Original intended usage is to allow FTP access only from home country for
 most users, to mitigate trojan horses which steal passwords, but is now used
