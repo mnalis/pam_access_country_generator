@@ -257,7 +257,7 @@ sub parse_delegated($$) {
 			$cidr = 32-log2($l_size);
 			if ($cidr - int($cidr)) {
 				# FIXME: alternatively, we could just skip over it, and rely on WHOIS4 to fix it. Or we could calculate an range manually and add that to be precise.
-				$DEBUG && print STDERR "WARNING: non-CIDR size $l_size for $l_ip/$cidr in country $l_country, upgrading CIDR to bigger one (better be safe than sorry)\n";
+				$DEBUG > 1 && print STDERR "WARNING: non-CIDR size $l_size for $l_ip/$cidr in country $l_country, upgrading CIDR to bigger one (better be safe than sorry)\n";
 				$cidr = int($cidr);	# or we could add "+1" here if we would rather just add partial network range...
 			}
 			my $range = "$l_ip/$cidr";
