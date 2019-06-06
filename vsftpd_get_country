@@ -330,7 +330,9 @@ sub parse_whois($) {
 		    my $inet_str='inetnum'; $inet_str='inet6num' if $last_inetnum =~ /:/;
 
 		    $DEBUG > 12 && print STDERR "  try $inet_str: $last_inetnum\n";
-		    while ($last_inetnum !~ m{^([a-z0-9/:]+/\d{1,3})|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\h*-\h*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$}) {
+		    $last_inetnum =~ s{^(\d{1,3}\.\d{1,3}\.\d{1,3})/(\d{1,2})$}{$1.0/$2}g;	# handle 24.232.16/24 format
+		    $last_inetnum =~ s{^(\d{1,3}\.\d{1,3})/(\d{1,2})$}{$1.0.0/$2}g;		# handle 24.232/16 format
+		    while ($last_inetnum !~ m{^([a-z0-9/:]+/\d{1,3})|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\h*-\h*\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2})$}) {
 		    	if ($_ = <$f_url_whois>) {
 		    		if (/^\h+\S+/) {
 		    			$DEBUG > 1 and print STDERR "WARNING: invalid $inet_str: $last_inetnum, but looks like continuation line with $_";
@@ -359,7 +361,11 @@ sub parse_whois($) {
 				$CCIDR6{$found_country}->add($last_inetnum);
 				$count_whois6++;
 			} else {
-				$CCIDR4{$found_country}->add_range($last_inetnum);
+				if ($last_inetnum =~ m{/}) {	# a.b.c.d/e format
+					$CCIDR4{$found_country}->add($last_inetnum);
+				} else {			# a.b.c.d - e.f.g.h format
+					$CCIDR4{$found_country}->add_range($last_inetnum);
+				}
 				$count_whois4++;
 			}
 		    }
