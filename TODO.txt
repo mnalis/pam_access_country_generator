@@ -1,4 +1,5 @@
-- WHOIS DB parsing use route/route6 also in addition to inetnum/inet6num (RIPE and APNIC also download extra SPLIT DBs)
++? WHOIS DB parsing use route/route6 also in addition to inetnum/inet6num
+	- RIPE and APNIC also need to download extra SPLIT DBs then
 
 +? fix (and workaround) for SI - and find and report other broken countries!
 	00:00:01     found 193.164.137.0/21.6780719051126 (size: 1280) in country: SI

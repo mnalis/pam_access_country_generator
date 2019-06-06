@@ -36,22 +36,22 @@ if ( -x '/usr/bin/wget') { $WGET_CMD='wget -q -O-' }
 
 # all delegated databases (uses RIPE mirror, should use master for each probably) with estimated minimum of inet(6)nums
 my %URLS_DELEGATED = (
-		'ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest'		=> 100_000,
 		'ftp://ftp.ripe.net/pub/stats/afrinic/delegated-afrinic-latest'		=> 5_000,
-		'ftp://ftp.ripe.net/pub/stats/apnic/delegated-apnic-latest' 		=> 50_000,
 		'ftp://ftp.ripe.net/pub/stats/lacnic/delegated-lacnic-extended-latest'	=> 30_000,
+		'ftp://ftp.ripe.net/pub/stats/apnic/delegated-apnic-latest' 		=> 50_000,
 		'ftp://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest'	=> 120_000,
+		'ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest'		=> 100_000,
 	);
 
 # all WHOIS DATABASES
 my @URLS_WHOIS = (
-		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz',
-		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz',
 		'http://ftp.afrinic.net/dbase/afrinic.db.gz',
+		'http://ftp.lacnic.net/lacnic/dbase/lacnic.db.gz',
 		'http://ftp.apnic.net/apnic/whois/apnic.db.inet6num.gz',
 		'http://ftp.apnic.net/apnic/whois/apnic.db.inetnum.gz',
-		'http://ftp.lacnic.net/lacnic/dbase/lacnic.db.gz',
 		'ftp://ftp.arin.net/pub/rr/arin.db',
+		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz',
+		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz',
 	);
 
 my $opt_help = 0;
@@ -325,9 +325,9 @@ sub parse_whois($) {
 	my $count_whois6 = 0;
 	while (<$f_url_whois>) {
 		$last_obj = $_ if $new_block;		# first line in new block (after empty line) usually indicates type of object
-		if (m{^inet6?num:\h*(.+)\h*$}) {	# inetnum / inet6num
-		    $last_inetnum = lc $1;
-		    my $inet_str='inetnum'; $inet_str='inet6num' if $last_inetnum =~ /:/;
+		if (m{^(route6?|inet6?num):\h*(.+?)\h*$}) {	# inetnum / inet6num / route / route6
+		    $last_inetnum = lc $2;
+		    my $inet_str = lc $1;
 
 		    $DEBUG > 12 && print STDERR "  try $inet_str: $last_inetnum\n";
 		    $last_inetnum =~ s{^(\d{1,3}\.\d{1,3}\.\d{1,3})/(\d{1,2})$}{$1.0/$2}g;	# handle 24.232.16/24 format
@@ -340,7 +340,7 @@ sub parse_whois($) {
 		    			next;
 				}
 		    	}
-		    	die "invalid $inet_str: $last_inetnum";
+		    	die "invalid $inet_str: >$last_inetnum<";
 		    }
 		} elsif (m{^$}) {				# empty line indicates new record (but line made of whitespace only might be part of descr: in ARIN DB!)
 		    $last_inetnum = undef;
