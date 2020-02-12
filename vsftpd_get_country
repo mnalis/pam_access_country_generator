@@ -217,6 +217,7 @@ sub parse_delegated($$) {
 		next if /^\s*#/;
 		last;			# first non-empty non-comment line should be our DB header
 	}
+	if (!defined $_) { die "failed fetching data from: $urldb_cmd" }
 	my ($db_ver, $db_sig, $db_ts, $db_count, undef, $db_date, $db_tz) = split /\|/;
 
 	# header sanity checks
