@@ -1,5 +1,5 @@
 #!/usr/bin/perl -T
-# Matija Nalis <mnalis-perl@axe.tomsoft.hr> GPLv3+  started 20140405 - updated 20190316 
+# Matija Nalis <mnalis-perl@axe.tomsoft.hr> GPLv3+  started 20140405 - updated 20250303
 #
 # gets list of RIPE IP adressess and creates ranges for ipset or vsftp pam_access limiting
 # upstream: https://github.com/mnalis/pam_access_country_generator
@@ -34,20 +34,6 @@ if ( -x '/usr/bin/pigz') { $DECOMPRESS="pigz -dc" }	# use faster decompressor if
 my $WGET_CMD='curl -s';
 if ( -x '/usr/bin/wget') { $WGET_CMD='wget -q -O-' }
 
-my $current_date = undef;
-my $current_year = undef;
-# calculate day before yesterday (as today here might not have yet happened everywhere)
-# needed for AfriNIC 2025/03, as they have broken *-lastest symlinks
-#
-sub yesterday_fmt() {
-	my $epoch_time = time();
-	$epoch_time = $epoch_time - 86400*2;
-
-	my ($sec, $min, $hour, $mday, $mon, $year) = localtime($epoch_time);
-	$current_date = sprintf("%04d%02d%02d", $year+1900, $mon + 1, $mday);
-	$current_year = $year+1900;
-}
-yesterday_fmt();
 
 # all delegated databases (uses RIPE mirror, should use master for each probably) with estimated minimum of inet(6)nums
 my %URLS_DELEGATED = (
@@ -117,6 +103,23 @@ my $DYNAMIC_END_A   = "$DYNAMIC_END_R FOR $LABEL, **DO NOT CHANGE THIS LINE AND 
 my $PAM_FILE_TMP = $PAM_FILE_FINAL . '.tmp' if defined $PAM_FILE_FINAL;
 my $IPSET_FILE_TMP = $IPSET_FILE_FINAL . '.tmp' if defined $IPSET_FILE_FINAL;
 
+# calculate day before yesterday (as today here might not have yet happened everywhere)
+# needed for AfriNIC 2025/03, as they have broken *-lastest symlinks
+#
+sub setup_dates() {
+	my $epoch_time = time();
+	$epoch_time = $epoch_time - 86400*3;
+
+	my ($sec, $min, $hour, $mday, $mon, $year) = localtime($epoch_time);
+	my $c_date = sprintf("%04d%02d%02d", $year+1900, $mon + 1, $mday);
+	my $c_year = $year+1900;
+
+	$DEBUG > 1 && print STDERR "Calculated year=$c_year and date=$c_date from modified epoch $epoch_time\n";
+
+	return ($c_year, $c_date)
+}
+
+my ($current_year, $current_date) = setup_dates();
 
 # base-2 logarithm (to convert number of IP adresses to number of CIDR bits)
 sub log2($) {
