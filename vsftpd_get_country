@@ -34,13 +34,28 @@ if ( -x '/usr/bin/pigz') { $DECOMPRESS="pigz -dc" }	# use faster decompressor if
 my $WGET_CMD='curl -s';
 if ( -x '/usr/bin/wget') { $WGET_CMD='wget -q -O-' }
 
+my $current_date = undef;
+my $current_year = undef;
+# calculate day before yesterday (as today here might not have yet happened everywhere)
+# needed for AfriNIC 2025/03, as they have broken *-lastest symlinks
+#
+sub yesterday_fmt() {
+	my $epoch_time = time();
+	$epoch_time = $epoch_time - 86400*2;
+
+	my ($sec, $min, $hour, $mday, $mon, $year) = localtime($epoch_time);
+	$current_date = sprintf("%04d%02d%02d", $year+1900, $mon + 1, $mday);
+	$current_year = $year+1900;
+}
+yesterday_fmt();
+
 # all delegated databases (uses RIPE mirror, should use master for each probably) with estimated minimum of inet(6)nums
 my %URLS_DELEGATED = (
-		'ftp://ftp.ripe.net/pub/stats/afrinic/delegated-afrinic-latest'		=> 5_000,
-		'ftp://ftp.ripe.net/pub/stats/lacnic/delegated-lacnic-extended-latest'	=> 30_000,
-		'ftp://ftp.ripe.net/pub/stats/apnic/delegated-apnic-latest' 		=> 50_000,
-		'ftp://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest'	=> 120_000,
-		'ftp://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest'		=> 100_000,
+		'https://ftp.afrinic.net/pub/stats/afrinic/$year/delegated-afrinic-$date'   => 8_000,
+		'https://ftp.lacnic.net/pub/stats/lacnic/delegated-lacnic-extended-latest'  => 90_000,
+		'https://ftp.apnic.net/pub/stats/apnic/delegated-apnic-latest'              => 80_000,
+		'https://ftp.arin.net/pub/stats/arin/delegated-arin-extended-latest'        => 190_000,
+		'https://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest'           => 160_000,
 	);
 
 # all WHOIS DATABASES
@@ -49,7 +64,7 @@ my @URLS_WHOIS = (
 		'http://ftp.lacnic.net/lacnic/dbase/lacnic.db.gz',
 		'http://ftp.apnic.net/apnic/whois/apnic.db.inet6num.gz',
 		'http://ftp.apnic.net/apnic/whois/apnic.db.inetnum.gz',
-		'ftp://ftp.arin.net/pub/rr/arin.db',
+		'ftp://ftp.arin.net/pub/rr/arin.db.gz',
 		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz',
 		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz',
 	);
@@ -273,9 +288,18 @@ sub parse_delegated($$) {
 	$DEBUG and print STDERR "$db_sig delegated DB finished processing $db_count networks (added $count_db4 IPv4 and $count_db6 IPv6)\n";
 }
 
+# fix date template if present in URL
+sub fix_url($) {
+	my ($url) = @_;
+	$url =~ s/\$year/${current_year}/g;
+	$url =~ s/\$date/${current_date}/g;
+	return $url;
+}
+
 # if DEBUG>=8, try using cached file if available
 sub maybe_try_cached($) {
 	my ($url) = @_;
+	$url = fix_url($url);
 	my $filename = $url; $filename =~ s{^.*/}{}g;
 
 	my $cmd = "$WGET_CMD $url";	# by default, just use wget
