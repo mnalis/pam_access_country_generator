@@ -276,8 +276,33 @@ sub parse_delegated($$) {
 			$cidr = 32-log2($l_size);
 			if ($cidr - int($cidr)) {
 				# FIXME: alternatively, we could just skip over it, and rely on WHOIS4 to fix it. Or we could calculate an range manually and add that to be precise.
-				$DEBUG > 1 && print STDERR "WARNING: non-CIDR size $l_size for $l_ip/$cidr in country $l_country, upgrading CIDR to bigger one (better be safe than sorry)\n";
-				$cidr = int($cidr);	# or we could add "+1" here if we would rather just add partial network range...
+				$DEBUG > 1 && print STDERR "WARNING: non-CIDR size $l_size for $l_ip/$cidr in country $l_country: ";
+
+				# FIXME DELME: WARNING: non-CIDR size 1536 for 193.27.236.0/21.4150374992788 in country RU, upgrading CIDR to bigger one (better be safe than sorry)
+				my $c_classes = $l_size / 256;
+				if ($c_classes == int($c_classes) and $l_ip =~ /\.0$/) {
+					$DEBUG > 1 && print STDERR "found (integer) $c_classes C-classes starting from $l_ip\n";
+					my $ll_ip = $l_ip;
+					while ($c_classes-- > 1) {
+						my ($q1, $q2, $q3, $q4) = split /\./, $ll_ip;
+
+						# increment last quad (or whichever higher is needed)
+						$q3++; if ($q3 > 255) {
+							$q3=0; $q2++; if ($q2 > 255) {
+								$q2=0; $q1++; if ($q1 > 255) {
+									die "FATAL never happens: shoot past 255.255.255.255"
+								}
+							}
+						}
+						$ll_ip = "$q1.$q2.$q3.$q4";
+						$DEBUG > 10 && print STDERR "    smartly adding /24 ($c_classes remaining): $q1,$q2,$q3,$q4\n";
+						$CCIDR4{$l_country}->add("$ll_ip/24");
+					}
+					$cidr=24;   # pass through to add initial range as normally
+				} else {
+					$DEBUG > 1 && print STDERR "failed to find smart solution -- upgrading CIDR to bigger one (better be safe than sorry)\n";
+					$cidr = int($cidr);	# or we could add "+1" here if we would rather just add partial network range...
+				}
 			}
 			my $range = "$l_ip/$cidr";
 			$DEBUG > 10 && print STDERR "    found $l_ip/$cidr (size: $l_size) in country: $l_country\n";

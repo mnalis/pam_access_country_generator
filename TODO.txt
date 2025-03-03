@@ -1,7 +1,7 @@
 +? WHOIS DB parsing use route/route6 also in addition to inetnum/inet6num
 	- RIPE and APNIC also need to download extra SPLIT DBs then
 
-+? fix (and workaround) for SI - and find and report other broken countries!
++ fix (and workaround) for SI - and find and report other broken countries!
 	00:00:01     found 193.164.137.0/21.6780719051126 (size: 1280) in country: SI
 	00:00:01 Bad mask 21.6780719051126 at /usr/share/perl5/Net/CIDR/Lite.pm line 40, <$f_urldb> line 64743.
 	00:00:01        Net::CIDR::Lite::add(Net::CIDR::Lite=HASH(0x55628af3fe58), "193.164.137.0/21.6780719051126") called at ./vsftpd_get_country line 248
@@ -14,7 +14,7 @@
 	ripe.db.inetnum.gz:country:        SI
 	ripe.db.inetnum.gz:org:            ORG-Dd9-RIPE
 
-	workaround added, but it might be nice to use precise values...
+	workaround added, with precise values
 
 + check multiple countries da li radi (i da li generira duplice?)
   radi, i generira duplice u svakom IPSET kako treba (ali i u PAM, gdje realno mozda ne treba)
