@@ -50,9 +50,9 @@ my @URLS_WHOIS = (
 		'http://ftp.lacnic.net/lacnic/dbase/lacnic.db.gz',
 		'http://ftp.apnic.net/apnic/whois/apnic.db.inet6num.gz',
 		'http://ftp.apnic.net/apnic/whois/apnic.db.inetnum.gz',
-		'ftp://ftp.arin.net/pub/rr/arin.db.gz',
-		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz',
-		'ftp://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz',
+		'http://ftp.arin.net/pub/rr/arin.db.gz',
+		'http://ftp.ripe.net/ripe/dbase/split/ripe.db.inet6num.gz',
+		'http://ftp.ripe.net/ripe/dbase/split/ripe.db.inetnum.gz',
 	);
 
 my $opt_help = 0;
